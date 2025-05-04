@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15.3-alpine
+    container_name: sqlchat_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sqlchatdb
+    ports:
+      - '5438:5432'
+    volumes:
+      - ./bbdd_createtable/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db:/var/lib/postgresql/data
+
+  etl:
+    build:
+      context: ./etl
+    depends_on:
+      - postgres
+    volumes:
+      - ./csv:/app/csv
+    environment:
+      DB_HOST: postgres
+      DB_NAME: sqlchatdb
+      DB_USER: postgres
+      DB_PASS: postgres
+
+  adminer:
+    image: adminer
+    container_name: sqlchat_adminer
+    restart: always
+    ports:
+      - "8085:8080"
+
+volumes:
+  db:

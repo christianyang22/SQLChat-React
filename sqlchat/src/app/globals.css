@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --background: #333333;
+  --header-bg: #2c2c2c;
+  --aside: #2c2c2c;
+  --card: #202020;
+  --foreground: #ffffff;
+  --logo-color: #5FCBCB;
+  --secondary: #5FCBCB;
+  --modal-overlay: rgba(30, 30, 30, 0.6);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, sans-serif;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(68%) sepia(13%) saturate(1034%) hue-rotate(128deg) brightness(93%) contrast(88%);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
