@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import ConfigPopup from "./ConfigPopup";
 
 type HeaderProps = {
-  variant: "main" | "login" | "register";
+  variant: "main" | "login" | "register" | "home";
 };
 
 export default function Header({ variant }: HeaderProps) {
@@ -21,13 +21,11 @@ export default function Header({ variant }: HeaderProps) {
         setMenuAbierto(false);
       }
     };
-
     if (menuAbierto) {
       document.addEventListener("mousedown", handleClickFuera);
     } else {
       document.removeEventListener("mousedown", handleClickFuera);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickFuera);
     };
@@ -36,15 +34,14 @@ export default function Header({ variant }: HeaderProps) {
   return (
     <>
       <header className="w-full flex justify-end items-center px-8 py-4">
-        {variant === "main" ? (
+        {variant === "main" && (
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuAbierto(!menuAbierto)}
-              className="px-4 py-2 bg-[var(--logo-color)] text-black font-semibold rounded-md shadow-md hover:bg-[#4db4b4] hover:text-white transition"
+              className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition"
             >
               Perfil
             </button>
-
             {menuAbierto && (
               <div className="absolute right-0 mt-2 w-40 bg-[#2c2c2c] text-white rounded-md shadow-lg border border-[#5FCBCB] z-10">
                 <ul className="py-2">
@@ -69,17 +66,30 @@ export default function Header({ variant }: HeaderProps) {
               </div>
             )}
           </div>
-        ) : variant === "login" ? (
+        )}
+
+        {variant === "login" && (
           <Link
-            href="/register"
-            className="px-4 py-2 bg-[var(--logo-color)] text-black font-semibold rounded-md shadow-md hover:bg-[#4db4b4] hover:text-white transition"
+            href="/"
+            className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition"
           >
-            Regístrate
+            Inicio
           </Link>
-        ) : (
+        )}
+
+        {variant === "register" && (
           <Link
             href="/login"
-            className="px-4 py-2 bg-[var(--logo-color)] text-black font-semibold rounded-md shadow-md hover:bg-[#4db4b4] hover:text-white transition"
+            className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition"
+          >
+            Iniciar sesión
+          </Link>
+        )}
+
+        {variant === "home" && (
+          <Link
+            href="/login"
+            className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition"
           >
             Iniciar sesión
           </Link>

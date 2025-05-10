@@ -46,36 +46,36 @@ export default function RegisterPage() {
         <p className="text-lg">Regístrate para empezar a usar SQLChat</p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full max-w-sm text-left">
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Nombre
             </label>
             <input
               type="text"
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
               required
             />
           </div>
 
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Apellido
             </label>
             <input
               type="text"
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
               required
             />
           </div>
 
-          <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+          <div className="relative group">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Fecha de nacimiento
             </label>
             <input
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)] calendar-hover"
               required
             />
             {!esMayorDeEdad && (
@@ -84,31 +84,31 @@ export default function RegisterPage() {
           </div>
 
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Correo electrónico
             </label>
             <input
               type="email"
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
               required
             />
           </div>
 
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Contraseña
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
               required
             />
           </div>
 
           {password.length > 0 && (
-            <div className="text-sm text-white space-y-1">
+            <div className="text-sm text-[var(--foreground)] space-y-1">
               <p className={reglas.longitud ? "text-green-400" : "text-red-400"}>• Mínimo 8 caracteres</p>
               <p className={reglas.mayuscula ? "text-green-400" : "text-red-400"}>• Una letra mayúscula</p>
               <p className={reglas.numero ? "text-green-400" : "text-red-400"}>• Un número</p>
@@ -117,14 +117,14 @@ export default function RegisterPage() {
           )}
 
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Confirmar contraseña
             </label>
             <input
               type="password"
               value={confirmPass}
               onChange={(e) => setConfirmPass(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
               required
             />
             {!reglas.coinciden && confirmPass && (
@@ -137,16 +137,16 @@ export default function RegisterPage() {
             disabled={!formularioValido}
             className={`mt-2 font-semibold py-2 rounded-xl transition ${
               formularioValido
-                ? "bg-[#5FCBCB] text-black hover:bg-[#4db4b4] hover:text-white"
+                ? "bg-[var(--secondary)] text-black hover:bg-[#4db4b4] hover:text-white"
                 : "bg-gray-600 text-white cursor-not-allowed"
             }`}
           >
             Registrarse
           </button>
 
-          <p className="text-center text-sm text-white mt-2">
+          <p className="text-center text-sm text-[var(--foreground)] mt-2">
             ¿Ya tienes cuenta?{" "}
-            <Link href="/login" className="text-[#5FCBCB] hover:underline">
+            <Link href="/login" className="text-[var(--secondary)] hover:underline">
               Inicia sesión
             </Link>
           </p>

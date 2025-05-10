@@ -26,27 +26,27 @@ export default function LoginPage() {
         <p className="text-lg">Accede a tu cuenta de SQLChat</p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full max-w-sm text-left">
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Correo electrónico
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
               required
             />
           </div>
 
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-white text-sm font-semibold">
+            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
               Contraseña
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-white focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
+              className="w-full px-4 py-3 rounded-xl border border-[#5FCBCB] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[#5FCBCB]"
               required
             />
           </div>
@@ -63,7 +63,7 @@ export default function LoginPage() {
             Iniciar sesión
           </button>
 
-          <p className="text-center text-sm text-white mt-2">
+          <p className="text-center text-sm text-[var(--foreground)] mt-2">
             ¿No tienes cuenta?{" "}
             <Link href="/register" className="text-[#5FCBCB] hover:underline">
               Regístrate

@@ -3,12 +3,24 @@
 import Header from "../components/header";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FilePen, Database, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  FilePen,
+  Database,
+  ChevronsLeft,
+  ChevronsRight,
+  ClipboardPaste,
+  Send,
+  Copy,
+  Download,
+  Maximize2,
+  X,
+} from "lucide-react";
 
 export default function MainPage() {
   const [pregunta, setPregunta] = useState("");
   const [consultaSQL, setConsultaSQL] = useState("SELECT *\nFROM BBDD");
   const [resultado, setResultado] = useState("");
+  const [expandido, setExpandido] = useState(false);
   const [asideAbierto, setAsideAbierto] = useState(
     typeof window !== "undefined" && localStorage.getItem("asideAbierto") === "false"
       ? false
@@ -25,6 +37,39 @@ export default function MainPage() {
     "Base de datos galicia",
     "Base de datos leon",
   ];
+
+  const handlePegar = async () => {
+    try {
+      const texto = await navigator.clipboard.readText();
+      setPregunta((prev) => prev + texto);
+    } catch {}
+  };
+
+  const handleCopiarConsulta = async () => {
+    try {
+      await navigator.clipboard.writeText(consultaSQL);
+    } catch {}
+  };
+
+  const handleGuardarResultado = () => {
+    const blob = new Blob([resultado], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tabla_resultante.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExpandir = () => {
+    setExpandido(true);
+  };
+
+  const handleEnviar = () => {
+    if (!pregunta.trim()) return;
+    setConsultaSQL("SELECT *\nFROM tabla_respuesta");
+    setResultado("Resultado simulado de la consulta.");
+  };
 
   return (
     <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -82,37 +127,117 @@ export default function MainPage() {
 
         <div className="flex flex-1 p-6 gap-6">
           <section className="w-1/2 flex flex-col gap-6">
-            <div>
+            <div className="relative">
               <h3 className="text-[var(--secondary)] font-semibold mb-1">Pregunta</h3>
-              <textarea
-                placeholder="Escribe lo que quieras realizar en español"
-                value={pregunta}
-                onChange={(e) => setPregunta(e.target.value)}
-                className="w-full h-32 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
-              />
+              <div className="relative">
+                <textarea
+                  placeholder="Escribe lo que quieras realizar en español"
+                  value={pregunta}
+                  onChange={(e) => setPregunta(e.target.value)}
+                  className="w-full h-32 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 pr-10 resize-none overflow-auto focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
+                />
+                <div className="absolute top-2 right-4 flex gap-2">
+                  <button
+                    onClick={handlePegar}
+                    className="text-[var(--secondary)] hover:text-white relative group transition"
+                  >
+                    <ClipboardPaste size={18} />
+                    <span className="absolute -top-7 right-0 bg-[var(--card)] text-xs text-[var(--foreground)] px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                      Pegar texto
+                    </span>
+                  </button>
+                </div>
+                <div className="absolute bottom-2 right-4">
+                  <button
+                    onClick={handleEnviar}
+                    className="text-[var(--secondary)] hover:text-white relative group transition"
+                  >
+                    <Send size={18} />
+                    <span className="absolute -bottom-7 right-0 bg-[var(--card)] text-xs text-[var(--foreground)] px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                      Enviar
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div>
+            <div className="relative">
               <h3 className="text-[var(--secondary)] font-semibold mb-1">Consulta generada</h3>
-              <textarea
-                value={consultaSQL}
-                readOnly
-                className="w-full h-24 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 resize-none"
-              />
+              <div className="relative">
+                <textarea
+                  value={consultaSQL}
+                  readOnly
+                  className="w-full h-24 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 pr-10 resize-none overflow-auto"
+                />
+                <div className="absolute top-2 right-4">
+                  <button
+                    onClick={handleCopiarConsulta}
+                    className="text-[var(--secondary)] hover:text-white relative group transition"
+                  >
+                    <Copy size={18} />
+                    <span className="absolute -top-7 right-0 bg-[var(--card)] text-xs text-[var(--foreground)] px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                      Copiar consulta
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 
           <section className="flex-1 flex flex-col">
-            <h3 className="text-[var(--secondary)] font-semibold mb-1">Tabla resultante</h3>
-            <div className="flex-1 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 overflow-auto">
+            <div className="relative mb-1">
+              <h3 className="text-[var(--secondary)] font-semibold">Tabla resultante</h3>
+            </div>
+            <div className="relative flex-1 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 overflow-auto">
+              <div className="absolute top-2 right-4 flex gap-2">
+                <button
+                  onClick={handleGuardarResultado}
+                  className="text-[var(--secondary)] hover:text-white relative group transition"
+                >
+                  <Download size={18} />
+                  <span className="absolute -top-7 right-0 bg-[var(--card)] text-xs text-[var(--foreground)] px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                    Guardar tabla
+                  </span>
+                </button>
+                <button
+                  onClick={handleExpandir}
+                  className="text-[var(--secondary)] hover:text-white relative group transition"
+                >
+                  <Maximize2 size={18} />
+                  <span className="absolute -top-7 right-0 bg-[var(--card)] text-xs text-[var(--foreground)] px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                    Expandir
+                  </span>
+                </button>
+              </div>
               <pre className="text-sm">{resultado || "Sin datos..."}</pre>
             </div>
-            <p className="text-xs text-[var(--secondary)] mt-2">
-              Si realizas cambio, recuerda antes de aceptar los cambios revisar la tabla resultante.
-            </p>
           </section>
         </div>
+
+        <p className="text-xs text-[var(--secondary)] mt-2 text-center">
+          Si realizas cambio, recuerda antes de aceptar los cambios revisar la tabla resultante.
+        </p>
       </div>
+
+      {expandido && (
+        <div
+          className="fixed inset-0 bg-[var(--modal-overlay)] backdrop-blur-sm z-50 flex items-center justify-center p-10"
+          onClick={() => setExpandido(false)}
+        >
+          <div
+            className="relative bg-[var(--card)] text-[var(--foreground)] p-6 rounded-xl w-full h-full overflow-auto border border-[var(--secondary)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setExpandido(false)}
+              className="absolute top-4 right-4 text-[var(--secondary)] hover:text-white transition"
+            >
+              <X size={22} />
+            </button>
+            <pre className="whitespace-pre-wrap text-sm mt-8">{resultado || "Sin datos..."}</pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
