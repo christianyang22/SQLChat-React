@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+
+sqlalchemy[asyncio]
+asyncpg
+aiomysql
+aiosqlite
+
+python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
+openai
+sqlparse
+alembic
+pydantic-settings
+email-validator
+cachetools>=5.3.0

@@ -1,0 +1,165 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    container_name: sqlchat_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ufc_postgres:
+    image: postgres:15
+    container_name: sqlchat_ufc_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${UFC_POSTGRES_USER:-ufc_user}
+      POSTGRES_PASSWORD: ${UFC_POSTGRES_PASSWORD:-ufc_pass}
+      POSTGRES_DB: ${UFC_POSTGRES_DB:-ufc_db}
+    ports:
+      - "5436:5432"
+    volumes:
+      - ufc_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - pg_isready -U ${UFC_POSTGRES_USER:-ufc_user} -d ${UFC_POSTGRES_DB:-ufc_db}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cargar_sqlchat:
+    image: python:3.13-alpine
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      sh -c "echo 'Skipping load for sqlchat_db'; exit 0"
+    restart: "no"
+
+  cargar_ufc:
+    image: python:3.13-alpine
+    depends_on:
+      ufc_postgres:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ../csv:/csv
+    environment:
+      DB_HOST: ufc_postgres
+      DB_PORT: 5432
+      DB_NAME: ${UFC_POSTGRES_DB:-ufc_db}
+      DB_USER: ${UFC_POSTGRES_USER:-ufc_user}
+      DB_PASSWORD: ${UFC_POSTGRES_PASSWORD:-ufc_pass}
+      CSV_PATH: "/csv/UFC_Records.csv"
+    command: >
+      sh -c "pip install --no-cache-dir pandas psycopg2-binary &&
+             python cargar_datos.py"
+    restart: "no"
+
+  sqlchat_mariadb:
+    image: mariadb:10
+    container_name: sqlchat_mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-maria_root_pass}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-sqlchat_db}
+      MARIADB_USER: ${MARIADB_USER:-sqlchat}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-sqlchat_pass}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - "localhost"
+        - -P
+        - "3306"
+        - -u
+        - "root"
+        - -p${MARIADB_ROOT_PASSWORD}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  sqlchat_mysql:
+    image: mysql:8
+    container_name: sqlchat_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysql_root_pass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-sqlchat_db}
+      MYSQL_USER: ${MYSQL_USER:-sqlchat}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sqlchat_pass}
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - "localhost"
+        - -P
+        - "3306"
+        - -u
+        - "root"
+        - -p${MYSQL_ROOT_PASSWORD}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sqlchat_backend
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      ufc_postgres:
+        condition: service_healthy
+      cargar_sqlchat:
+        condition: service_completed_successfully
+      cargar_ufc:
+        condition: service_completed_successfully
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pg_data:
+  ufc_pg_data:
+  mariadb_data:
+  mysql_data:
