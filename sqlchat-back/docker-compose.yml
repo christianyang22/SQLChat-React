@@ -65,7 +65,7 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
-      - ../csv:/csv
+      - ./csv:/csv
     environment:
       DB_HOST: ufc_postgres
       DB_PORT: 5432

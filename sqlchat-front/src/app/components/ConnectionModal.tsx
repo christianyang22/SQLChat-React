@@ -53,9 +53,7 @@ export default function ConnectionModal({ connection, onClose, onSave }: Props) 
       }
       onSave();
       onClose();
-    } catch {
-      // error handling
-    }
+    } catch {}
   };
 
   return (

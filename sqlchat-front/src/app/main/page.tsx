@@ -15,6 +15,10 @@ import { useT } from "@/lib/t";
 import api from "@/utils/api";
 import { useDatabase } from "@/context/DatabaseContext";
 
+function limpiarSQL(text: string): string {
+  return text.replace(/```sql|```/g, "").trim();
+}
+
 export default function MainPage() {
   const t = useT();
   const { activeId } = useDatabase();
@@ -81,19 +85,26 @@ export default function MainPage() {
     setSql("");
     setResultMsg("");
     setRows([]);
+
     try {
-      const { sql: generated, rows: data } = await api.post<{
+      const response = await api.post<{
         sql: string;
         rows: any[];
-      }>("/query", { connection_id: activeId, question });
-      setSql(generated);
-      setRows(data);
-      if (data.length === 0) {
+      }>("/query", {
+        connection_id: activeId,
+        question,
+      });
+
+      const cleanSQL = limpiarSQL(response.sql);
+      setSql(cleanSQL);
+      setRows(response.rows);
+
+      if (response.rows.length === 0) {
         setResultMsg(t.noData);
       }
     } catch (err: any) {
       setSql("-- error --");
-      setResultMsg(err?.response?.data?.detail ?? String(err));
+      setResultMsg(err?.message ?? String(err));
     } finally {
       setLoading(false);
     }

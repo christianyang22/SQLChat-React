@@ -1,5 +1,3 @@
-# services/sql_executor.py
-
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy import text
 from sqlalchemy.pool import NullPool
@@ -19,7 +17,6 @@ def _build_dsn(
     password: str,
     database: str,
 ) -> str:
-    # Quitamos espacios en host, user, password y database
     host = host.strip()
     user = user.strip()
     password = password.strip()

@@ -17,7 +17,7 @@ input,textarea,select,label{color:var(--foreground)}
 input[type=date]::-webkit-calendar-picker-indicator{filter:invert(68%) sepia(13%) saturate(1034%) hue-rotate(128deg) brightness(93%) contrast(88%);transition:transform .2s,filter .2s}
 input[type=date]::-webkit-calendar-picker-indicator:hover{transform:scale(1.2);filter:invert(100%) brightness(150%) sepia(1) saturate(5) hue-rotate(145deg)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-.animate-fadeIn{animation:fadeIn .3s ease-out}
+.animate-fadeIn{ animation:fadeIn .3s ease-out; -webkit-animation:fadeIn .3s ease-out; }
 
 html.theme-light{
   --background:#f4f4f4;--header-bg:#ffffff;--aside:#e9e9e9;

@@ -13,7 +13,6 @@ from app.services.sql_executor import execute_sql, _build_dsn
 
 router = APIRouter(tags=["query"])
 
-
 @router.post("/", response_model=QueryResult)
 async def run_query(
     req: QueryRequest,

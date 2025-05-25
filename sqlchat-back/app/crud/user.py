@@ -1,5 +1,3 @@
-# app/crud/user.py
-
 from typing import Optional, Tuple
 from datetime import date
 
@@ -82,7 +80,6 @@ async def update_preferences(
 ) -> DBPreferences:
     prefs = await get_preferences(db, user_id)
     if prefs is None:
-        # Crear preferencias si no existen
         prefs = DBPreferences(user_id=user_id)
         db.add(prefs)
         await db.commit()
