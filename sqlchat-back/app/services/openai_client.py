@@ -5,7 +5,8 @@ import textwrap
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 SYSTEM_TMPL = """\
-Eres un asistente que traduce lenguaje natural a SQL **sin explicar nada**.
+Eres un asistente que traduce lenguaje natural a SQL sin explicar nada.
+Cuando compares texto en una cláusula WHERE hazlo de forma insensible a mayúsculas/minúsculas (ILIKE o LOWER(col) = 'valor').
 Devuelve únicamente la sentencia.
 Esquema disponible:
 {schema}

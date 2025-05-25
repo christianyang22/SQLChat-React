@@ -6,16 +6,25 @@ async function apiFetch<T = any>(
   method: string,
   path: string,
   body?: unknown,
-  expect: Resp = "json",
+  expect: Resp = "json"
 ): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const headers: Record<string, string> = {
     ...(body ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  const url = `${API_BASE}${path.replace(/\/?$/, "/")}`;
+  let fixedPath: string;
+  if (path.includes("?")) {
+    const [p, q] = path.split("?");
+    fixedPath = `${p.replace(/\/?$/, "/")}?${q}`;
+  } else {
+    fixedPath = path.replace(/\/?$/, "/");
+  }
+
+  const url = `${API_BASE}${fixedPath}`;
 
   const res = await fetch(url, {
     method,
@@ -38,9 +47,9 @@ async function apiFetch<T = any>(
 }
 
 export default {
-  get      : <T = any>(p: string)          => apiFetch<T>("GET"   , p),
-  getPlain :      (p: string)              => apiFetch<string>("GET", p, undefined, "text"),
-  post     : <T = any>(p: string, b?: any) => apiFetch<T>("POST"  , p, b),
-  put      : <T = any>(p: string, b?: any) => apiFetch<T>("PUT"   , p, b),
-  delete   : <T = any>(p: string)          => apiFetch<T>("DELETE", p, undefined, "void"),
+  get:      <T = any>(p: string) => apiFetch<T>("GET", p),
+  getPlain:           (p: string) => apiFetch<string>("GET", p, undefined, "text"),
+  post:     <T = any>(p: string, b?: any) => apiFetch<T>("POST", p, b),
+  put:      <T = any>(p: string, b?: any) => apiFetch<T>("PUT", p, b),
+  delete:   <T = any>(p: string) => apiFetch<T>("DELETE", p),
 };

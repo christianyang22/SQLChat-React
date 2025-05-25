@@ -3,14 +3,7 @@
 import { useState, useEffect } from "react";
 import Aside from "@/app/components/Aside";
 import Header from "@/app/components/Header";
-import {
-  ClipboardPaste,
-  Send,
-  Copy,
-  Download,
-  Maximize2,
-  X,
-} from "lucide-react";
+import { ClipboardPaste, Send, Copy, Download, Maximize2, X } from "lucide-react";
 import { useT } from "@/lib/t";
 import api from "@/utils/api";
 import { useDatabase } from "@/context/DatabaseContext";
@@ -23,8 +16,7 @@ export default function MainPage() {
   const t = useT();
   const { activeId } = useDatabase();
   const [asideOpen, setAsideOpen] = useState(
-    typeof window !== "undefined" &&
-      localStorage.getItem("asideAbierto") === "false"
+    typeof window !== "undefined" && localStorage.getItem("asideAbierto") === "false"
       ? false
       : true
   );
@@ -34,6 +26,7 @@ export default function MainPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
 
   const MAX_ROWS = 100;
   const displayRows = rows.slice(0, MAX_ROWS);
@@ -79,29 +72,23 @@ export default function MainPage() {
     URL.revokeObjectURL(url);
   };
 
-  const send = async () => {
+  const runQuery = async (confirm = false) => {
     if (!question.trim() || !activeId) return;
     setLoading(true);
     setSql("");
     setResultMsg("");
     setRows([]);
-
     try {
-      const response = await api.post<{
-        sql: string;
-        rows: any[];
-      }>("/query", {
+      const response = await api.post<{ sql: string; rows: any[] }>(`/query/?confirm=${confirm}`, {
         connection_id: activeId,
         question,
       });
-
-      const cleanSQL = limpiarSQL(response.sql);
-      setSql(cleanSQL);
+      const clean = limpiarSQL(response.sql);
+      setSql(clean);
       setRows(response.rows);
-
-      if (response.rows.length === 0) {
-        setResultMsg(t.noData);
-      }
+      const mutating = /^(INSERT|UPDATE|DELETE)/i.test(clean);
+      setNeedsConfirm(mutating && !confirm);
+      if (!response.rows.length) setResultMsg(t.noData);
     } catch (err: any) {
       setSql("-- error --");
       setResultMsg(err?.message ?? String(err));
@@ -114,16 +101,11 @@ export default function MainPage() {
     <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
       <Aside collapsed={!asideOpen} onToggle={() => setAsideOpen((o) => !o)} />
       <div className="flex flex-col flex-1">
-        <Header
-          showBurger={asideOpen}
-          onBurgerClick={() => setAsideOpen((o) => !o)}
-        />
+        <Header showBurger={asideOpen} onBurgerClick={() => setAsideOpen((o) => !o)} />
         <div className="flex flex-1 p-6 gap-6 overflow-auto">
           <section className="w-1/2 flex flex-col gap-6">
             <div>
-              <h3 className="text-[var(--secondary)] font-semibold mb-1">
-                {t.question}
-              </h3>
+              <h3 className="text-[var(--secondary)] font-semibold mb-1">{t.question}</h3>
               <div className="relative">
                 <textarea
                   placeholder={t.placeholder}
@@ -131,14 +113,11 @@ export default function MainPage() {
                   onChange={(e) => setQuestion(e.target.value)}
                   className="w-full h-32 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 pr-10 pb-10 resize-none focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
                 />
-                <button
-                  onClick={paste}
-                  className="absolute top-3 right-3 text-[var(--secondary)]"
-                >
+                <button onClick={paste} className="absolute top-3 right-3 text-[var(--secondary)]">
                   <ClipboardPaste size={18} />
                 </button>
                 <button
-                  onClick={send}
+                  onClick={() => runQuery(false)}
                   disabled={loading || !activeId}
                   title={!activeId ? t.selectConnection : ""}
                   className="absolute bottom-3 right-3 text-[var(--secondary)] disabled:opacity-50"
@@ -148,42 +127,27 @@ export default function MainPage() {
               </div>
             </div>
             <div>
-              <h3 className="text-[var(--secondary)] font-semibold mb-1">
-                {t.generatedQuery}
-              </h3>
+              <h3 className="text-[var(--secondary)] font-semibold mb-1">{t.generatedQuery}</h3>
               <div className="relative">
                 <textarea
                   readOnly
                   value={sql}
                   className="w-full h-24 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 pr-10 resize-none"
                 />
-                <button
-                  onClick={copySql}
-                  className="absolute top-3 right-3 text-[var(--secondary)]"
-                >
+                <button onClick={copySql} className="absolute top-3 right-3 text-[var(--secondary)]">
                   <Copy size={18} />
                 </button>
               </div>
             </div>
           </section>
-          <section className="flex-1 flex flex-col">
-            <h3 className="text-[var(--secondary)] font-semibold mb-1">
-              {t.resultTable}
-            </h3>
-            <div className="relative flex-1 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 overflow-auto">
+          <section className="flex-1 min-w-0 flex flex-col">
+            <h3 className="text-[var(--secondary)] font-semibold mb-1">{t.resultTable}</h3>
+            <div className="relative flex-1 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 overflow-hidden">
               <div className="absolute top-3 right-3 flex gap-2">
-                <button
-                  onClick={saveCsv}
-                  disabled={rows.length === 0}
-                  className="text-[var(--secondary)] disabled:opacity-50"
-                >
+                <button onClick={saveCsv} disabled={!rows.length} className="text-[var(--secondary)] disabled:opacity-50">
                   <Download size={18} />
                 </button>
-                <button
-                  onClick={() => setExpanded(true)}
-                  disabled={rows.length === 0}
-                  className="text-[var(--secondary)] disabled:opacity-50"
-                >
+                <button onClick={() => setExpanded(true)} disabled={!rows.length} className="text-[var(--secondary)] disabled:opacity-50">
                   <Maximize2 size={18} />
                 </button>
               </div>
@@ -191,31 +155,35 @@ export default function MainPage() {
                 <p className="text-sm italic">{t.loading}</p>
               ) : rows.length > 0 ? (
                 <>
-                  <div className="mt-8 overflow-x-auto">
-                    <table className="min-w-max border-collapse text-sm">
+                  <div className="mt-8 overflow-x-auto max-w-full">
+                    <table className="w-max border-collapse text-sm whitespace-nowrap">
                       <thead>
                         <tr>
                           {Object.keys(displayRows[0]).map((col) => (
-                            <th
-                              key={col}
-                              className="border px-2 py-1 bg-[var(--secondary)] text-black"
-                            >
+                            <th key={col} className="border px-2 py-1 bg-[var(--secondary)] text-black">
                               {col}
                             </th>
                           ))}
+                          {needsConfirm && (
+                            <th className="border px-2 py-1 bg-[var(--secondary)] text-black">Acciones</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
                         {displayRows.map((row, i) => (
-                          <tr
-                            key={i}
-                            className={i % 2 === 0 ? "bg-[var(--background)]" : ""}
-                          >
+                          <tr key={i} className={i % 2 === 0 ? "bg-[var(--background)]" : ""}>
                             {Object.values(row).map((val, j) => (
                               <td key={j} className="border px-2 py-1">
                                 {String(val)}
                               </td>
                             ))}
+                            {needsConfirm && (
+                              <td className="border px-2 py-1">
+                                <button onClick={() => runQuery(true)} className="px-2 py-1 bg-red-500 text-white rounded">
+                                  Confirmar cambios
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -242,22 +210,16 @@ export default function MainPage() {
               className="relative bg-[var(--card)] text-[var(--foreground)] p-6 rounded-xl w-full h-full overflow-auto border border-[var(--secondary)]"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                onClick={() => setExpanded(false)}
-                className="absolute top-4 right-4 text-[var(--secondary)]"
-              >
+              <button onClick={() => setExpanded(false)} className="absolute top-4 right-4 text-[var(--secondary)]">
                 <X size={22} />
               </button>
               {rows.length > 0 ? (
-                <div className="mt-8 overflow-x-auto">
-                  <table className="min-w-max border-collapse text-sm">
+                <div className="mt-8 overflow-x-auto max-w-full">
+                  <table className="w-max border-collapse text-sm whitespace-nowrap">
                     <thead>
                       <tr>
                         {Object.keys(rows[0]).map((col) => (
-                          <th
-                            key={col}
-                            className="border px-2 py-1 bg-[var(--secondary)] text-black"
-                          >
+                          <th key={col} className="border px-2 py-1 bg-[var(--secondary)] text-black">
                             {col}
                           </th>
                         ))}
@@ -265,10 +227,7 @@ export default function MainPage() {
                     </thead>
                     <tbody>
                       {rows.map((row, i) => (
-                        <tr
-                          key={i}
-                          className={i % 2 === 0 ? "bg-[var(--background)]" : ""}
-                        >
+                        <tr key={i} className={i % 2 === 0 ? "bg-[var(--background)]" : ""}>
                           {Object.values(row).map((val, j) => (
                             <td key={j} className="border px-2 py-1">
                               {String(val)}
