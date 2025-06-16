@@ -45,10 +45,6 @@ Este proyecto forma parte del Trabajo de Fin de Grado en Ingeniería Informátic
 - dotenv (gestión de entorno)
 - Pandas (ETL de carga inicial)
 
-## Capturas de pantalla
-
-[Espacio reservado para incluir imágenes del sistema en funcionamiento: conexión, consulta, resultados, configuración]
-
 ## Instrucciones de instalación y ejecución local
 
 Requisitos:
