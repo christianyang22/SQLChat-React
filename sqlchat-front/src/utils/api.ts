@@ -8,26 +8,20 @@ async function apiFetch<T = any>(
   body?: unknown,
   expect: Resp = "json"
 ): Promise<T> {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined"
+    ? localStorage.getItem("token")
+    : null;
 
   const headers: Record<string, string> = {
     ...(body ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  let fixedPath: string;
-  if (path.includes("?")) {
-    const [p, q] = path.split("?");
-    fixedPath = `${p.replace(/\/?$/, "/")}?${q}`;
-  } else {
-    fixedPath = path.replace(/\/?$/, "/");
-  }
-
-  const url = `${API_BASE}${fixedPath}`;
+  const url = `${API_BASE}${path}`;
 
   const res = await fetch(url, {
     method,
+    mode: "cors",
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -41,8 +35,12 @@ async function apiFetch<T = any>(
     throw new Error(msg);
   }
 
-  if (expect === "void" || res.status === 204) return null as unknown as T;
-  if (expect === "text") return (await res.text()) as T;
+  if (expect === "void" || res.status === 204) {
+    return null as unknown as T;
+  }
+  if (expect === "text") {
+    return (await res.text()) as T;
+  }
   return (await res.json()) as T;
 }
 

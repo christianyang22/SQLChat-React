@@ -1,34 +1,42 @@
 import { useLocale } from "@/context/LocaleContext";
 
-type Lang = "es" | "en";
+export type Lang = "es" | "en";
+
+export interface Translations {
+  welcome: string;
+  preferences: string;
+  notifications: string;
+  darkTheme: string;
+  language: string;
+  userProfile: string;
+  changePassword: string;
+  currentPassword: string;
+  newPassword: string;
+  save: string;
+  close: string;
+  question: string;
+  generatedQuery: string;
+  resultTable: string;
+  tables: string;
+  noTables: string;
+  paste: string;
+  send: string;
+  copy: string;
+  expand: string;
+  downloadCsv: string;
+  confirm: string;
+  showing: string;
+  note: string;
+  noData: string;
+  placeholder: string;
+  search: string;
+  selectConnection: string;
+  loading: string;
+  deleteConfirm: string;
+}
+
 type Dict = {
-  [K in Lang]: {
-    welcome: string;
-    preferences: string;
-    notifications: string;
-    darkTheme: string;
-    language: string;
-    userProfile: string;
-    changePassword: string;
-    currentPassword: string;
-    newPassword: string;
-    save: string;
-    close: string;
-    question: string;
-    generatedQuery: string;
-    resultTable: string;
-    paste: string;
-    send: string;
-    copy: string;
-    expand: string;
-    note: string;
-    noData: string;
-    placeholder: string;
-    search: string;
-    selectConnection: string;
-    loading: string;
-    deleteConfirm: string;
-  };
+  [K in Lang]: Translations;
 };
 
 const strings: Dict = {
@@ -47,10 +55,15 @@ const strings: Dict = {
     question: "Pregunta",
     generatedQuery: "Consulta generada",
     resultTable: "Tabla resultante",
+    tables: "Tablas",
+    noTables: "No hay tablas disponibles",
     paste: "Pegar",
     send: "Enviar",
     copy: "Copiar",
     expand: "Expandir",
+    downloadCsv: "Descargar CSV",
+    confirm: "Confirmar",
+    showing: "Mostrando",
     note: "Si realizas cambios, revisa la tabla resultante antes de aceptarlos.",
     noData: "Sin datos...",
     placeholder: "Escribe tu consulta",
@@ -66,18 +79,23 @@ const strings: Dict = {
     darkTheme: "Dark theme",
     language: "Language",
     userProfile: "User profile",
-    changePassword: "Change Password",
-    currentPassword: "Current Password",
-    newPassword: "New Password",
+    changePassword: "Change password",
+    currentPassword: "Current password",
+    newPassword: "New password",
     save: "Save",
     close: "Close",
     question: "Question",
     generatedQuery: "Generated query",
     resultTable: "Result table",
+    tables: "Tables",
+    noTables: "No tables available",
     paste: "Paste",
     send: "Send",
     copy: "Copy",
     expand: "Expand",
+    downloadCsv: "Download CSV",
+    confirm: "Confirm",
+    showing: "Showing",
     note: "If you make changes, review the resulting table before accepting them.",
     noData: "No data...",
     placeholder: "Write your query",
@@ -88,7 +106,7 @@ const strings: Dict = {
   },
 };
 
-export function useT() {
+export function useT(): Translations {
   const { lang } = useLocale();
   return strings[lang];
 }

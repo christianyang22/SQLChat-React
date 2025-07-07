@@ -1,5 +1,8 @@
+// app/layout.tsx
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
 import { DatabaseProvider } from "@/context/DatabaseContext";
 import { LocaleProvider } from "@/context/LocaleContext";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -19,9 +22,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <LocaleProvider>
-            <DatabaseProvider>
-              <main>{children}</main>
-            </DatabaseProvider>
+            <AuthProvider>
+              <DatabaseProvider>
+                <main>{children}</main>
+              </DatabaseProvider>
+            </AuthProvider>
           </LocaleProvider>
         </ThemeProvider>
       </body>

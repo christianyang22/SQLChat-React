@@ -1,99 +1,271 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent, useRef, KeyboardEvent } from "react";
 import Aside from "@/app/components/Aside";
 import Header from "@/app/components/Header";
-import { ClipboardPaste, Send, Copy, Download, Maximize2, X } from "lucide-react";
+import {
+  ClipboardPaste,
+  Send,
+  DatabaseIcon,
+  X as CloseIcon,
+} from "lucide-react";
 import { useT } from "@/lib/t";
 import api from "@/utils/api";
 import { useDatabase } from "@/context/DatabaseContext";
+import { v4 as uuid } from "uuid";
+import { TourProvider, useTour } from "@reactour/tour";
 
-function limpiarSQL(text: string): string {
-  return text.replace(/```sql|```/g, "").trim();
-}
+type Message = { role: "user" | "assistant"; content: string };
+type Result = {
+  id: string;
+  name: string;
+  cols: string[];
+  rows: Record<string, any>[];
+  pending: boolean;
+};
+
+const tourSteps = [
+  {
+    selector: 'button[title="Crear nueva conexión"]',
+    content: "Pulsa aquí para crear una nueva conexión a tu base de datos.",
+  },
+  {
+    selector: ".aside",
+    content:
+      "Esta área muestra todas tus conexiones; cuando crees la primera, aparecerá aquí. Pulsa en una para activarla.",
+  },
+  {
+    selector: ".table-nav",
+    content: "Selecciona aquí la tabla que quieres explorar.",
+  },
+  {
+    selector: ".query-input",
+    content: "Escribe tu pregunta en lenguaje natural en este cuadro.",
+  },
+  {
+    selector: ".send-button",
+    content: "Pulsa aquí para enviar tu consulta y generar el SQL.",
+  },
+  {
+    selector: ".results-table",
+    content:
+      "Los resultados o la vista previa de la mutación aparecen en esta zona.",
+  },
+  {
+    selector: "button.profile-button",
+    content:
+      "Desde aquí abres tu perfil para configuración o cerrar sesión.",
+  },
+];
 
 export default function MainPage() {
-  const t = useT();
-  const { activeId } = useDatabase();
-  const [asideOpen, setAsideOpen] = useState(
-    typeof window !== "undefined" && localStorage.getItem("asideAbierto") === "false"
-      ? false
-      : true
+  return (
+    <TourProvider
+      steps={tourSteps}
+      styles={{
+        maskArea: (base) => ({ ...base, backgroundColor: "rgba(0,0,0,0.5)" }),
+        popover: (base) => ({
+          ...base,
+          backgroundColor: "var(--card)",
+          color: "var(--foreground)",
+          border: "1px solid var(--secondary)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+        }),
+        badge: (base) => ({
+          ...base,
+          backgroundColor: "var(--secondary)",
+          color: "#fff",
+          borderRadius: "4px",
+        }),
+        close: (base) => ({
+          ...base,
+          color: "var(--secondary)",
+          fontSize: "1.2em",
+        }),
+      }}
+    >
+      <MainPageInner />
+    </TourProvider>
   );
-  const [question, setQuestion] = useState("");
-  const [sql, setSql] = useState("");
-  const [resultMsg, setResultMsg] = useState("");
-  const [rows, setRows] = useState<any[]>([]);
-  const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [needsConfirm, setNeedsConfirm] = useState(false);
+}
 
-  const MAX_ROWS = 100;
-  const displayRows = rows.slice(0, MAX_ROWS);
+function MainPageInner() {
+  const t = useT();
+  const { activeId, tables } = useDatabase();
+  const { isOpen, setCurrentStep, setIsOpen } = useTour();
 
   useEffect(() => {
-    localStorage.setItem("asideAbierto", asideOpen.toString());
+    if (localStorage.getItem("tourSeen") !== "true") {
+      setCurrentStep(0);
+      setIsOpen(true);
+    }
+  }, [setCurrentStep, setIsOpen]);
+
+  useEffect(() => {
+    if (isOpen === false) localStorage.setItem("tourSeen", "true");
+  }, [isOpen]);
+
+  const [asideOpen, setAsideOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("asideAbierto") !== "false";
+  });
+  useEffect(() => {
+    localStorage.setItem("asideAbierto", String(asideOpen));
   }, [asideOpen]);
+
+  const [selectedTable, setSelectedTable] = useState<string>("");
+  useEffect(() => {
+    setSelectedTable(tables[0] || "");
+  }, [tables]);
+
+  const [previewCols, setPreviewCols] = useState<string[]>([]);
+  const [previewRows, setPreviewRows] = useState<Record<string, any>[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState<boolean>(false);
+  const [lastSQL, setLastSQL] = useState<string>("");
+
+  const loadPreview = async () => {
+    if (!activeId || !selectedTable) return;
+    setLoadingPreview(true);
+    try {
+      const res = await api.post<{ sql: string; rows: any[] }>(
+        `/query?connection_id=${activeId}`,
+        { message: `SELECT * FROM ${selectedTable} LIMIT 50;`, table: selectedTable }
+      );
+      setPreviewCols(Object.keys(res.rows[0] || {}));
+      setPreviewRows(res.rows);
+    } catch {
+      setPreviewCols([]);
+      setPreviewRows([]);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPreview();
+  }, [activeId, selectedTable]);
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
+  const [activeResult, setActiveResult] = useState<string | null>(null);
+
+  const [input, setInput] = useState<string>("");
+  const [loadingChat, setLoadingChat] = useState<boolean>(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autosize = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    const maxH = ta.clientHeight * 3;
+    ta.style.height = `${Math.min(ta.scrollHeight, maxH)}px`;
+  };
+  useEffect(() => autosize(), [input]);
 
   const paste = async () => {
     try {
       const txt = await navigator.clipboard.readText();
-      setQuestion((q) => q + txt);
+      setInput((i) => i + txt);
+      setTimeout(autosize, 0);
     } catch {}
   };
 
-  const copySql = async () => {
-    try {
-      await navigator.clipboard.writeText(sql);
-    } catch {}
+  const closeResult = (id: string) => {
+    setResults((rs) => rs.filter((r) => r.id !== id));
+    if (activeResult === id) setActiveResult(null);
   };
 
-  const saveCsv = () => {
-    if (!rows.length) return;
-    const cols = Object.keys(rows[0]);
-    const lines = [
-      cols.join(","),
-      ...rows.map((r) =>
-        cols
-          .map((c) => {
-            const cell = r[c] ?? "";
-            return `"${String(cell).replace(/"/g, '""')}"`;
-          })
-          .join(",")
-      ),
-    ];
-    const csv = lines.join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "result.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const submitChat = async (confirm = false, previewId?: string) => {
+    let payload: string;
+    if (previewId) {
+      payload = lastSQL;
+    } else {
+      const txt = input.trim();
+      if (!txt || !activeId || !selectedTable) return;
+      payload = txt;
+      setMessages((ms) => [...ms, { role: "user", content: txt }]);
+      setInput("");
+    }
 
-  const runQuery = async (confirm = false) => {
-    if (!question.trim() || !activeId) return;
-    setLoading(true);
-    setSql("");
-    setResultMsg("");
-    setRows([]);
+    setLoadingChat(true);
     try {
-      const response = await api.post<{ sql: string; rows: any[] }>(`/query/?confirm=${confirm}`, {
-        connection_id: activeId,
-        question,
+      const url = confirm
+        ? `/query?connection_id=${activeId}&confirm=true`
+        : `/query?connection_id=${activeId}`;
+      const { sql, rows } = await api.post<{ sql: string; rows: any[] }>(url, {
+        message: payload,
+        table: selectedTable,
       });
-      const clean = limpiarSQL(response.sql);
-      setSql(clean);
-      setRows(response.rows);
-      const mutating = /^(INSERT|UPDATE|DELETE)/i.test(clean);
-      setNeedsConfirm(mutating && !confirm);
-      if (!response.rows.length) setResultMsg(t.noData);
-    } catch (err: any) {
-      setSql("-- error --");
-      setResultMsg(err?.message ?? String(err));
+      setLastSQL(sql);
+      setMessages((ms) => [...ms, { role: "assistant", content: `SQL: ${sql}` }]);
+
+      const isMut = /^(UPDATE|DELETE|INSERT)/i.test(sql.trim());
+      if (isMut) {
+        if (!confirm) {
+          const id = uuid();
+          setResults((rs) => [
+            ...rs,
+            {
+              id,
+              name: `Vista previa ${rs.length + 1}`,
+              cols: Object.keys(rows[0] || {}),
+              rows,
+              pending: true,
+            },
+          ]);
+          setActiveResult(id);
+        } else {
+          await loadPreview();
+
+          if (previewRows.length === 0) {
+            setMessages((ms) => [
+              ...ms,
+              {
+                role: "assistant",
+                content:
+                  "No se han encontrado filas con el valor antiguo, los cambios se han aplicado correctamente.",
+              },
+            ]);
+          }
+
+          if (previewId) closeResult(previewId);
+        }
+        setLoadingChat(false);
+        return;
+      }
+
+      if (rows.length) {
+        const id = uuid();
+        setResults((rs) => [
+          ...rs,
+          {
+            id,
+            name: `Resultado ${rs.length + 1}`,
+            cols: Object.keys(rows[0] || {}),
+            rows,
+            pending: false,
+          },
+        ]);
+        setActiveResult(id);
+      }
+    } catch (e: any) {
+      setMessages((ms) => [
+        ...ms,
+        { role: "assistant", content: e.message || "Error en consulta" },
+      ]);
     } finally {
-      setLoading(false);
+      setLoadingChat(false);
+    }
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    submitChat();
+  };
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submitChat();
     }
   };
 
@@ -102,148 +274,199 @@ export default function MainPage() {
       <Aside collapsed={!asideOpen} onToggle={() => setAsideOpen((o) => !o)} />
       <div className="flex flex-col flex-1">
         <Header showBurger={asideOpen} onBurgerClick={() => setAsideOpen((o) => !o)} />
-        <div className="flex flex-1 p-6 gap-6 overflow-auto">
-          <section className="w-1/2 flex flex-col gap-6">
-            <div>
-              <h3 className="text-[var(--secondary)] font-semibold mb-1">{t.question}</h3>
-              <div className="relative">
-                <textarea
-                  placeholder={t.placeholder}
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  className="w-full h-32 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 pr-10 pb-10 resize-none focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
-                />
-                <button onClick={paste} className="absolute top-3 right-3 text-[var(--secondary)]">
-                  <ClipboardPaste size={18} />
-                </button>
-                <button
-                  onClick={() => runQuery(false)}
-                  disabled={loading || !activeId}
-                  title={!activeId ? t.selectConnection : ""}
-                  className="absolute bottom-3 right-3 text-[var(--secondary)] disabled:opacity-50"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
+
+        <nav
+          className="table-nav flex items-center px-4 border-t border-b border-[var(--secondary)]"
+          style={{ height: "3rem" }}
+        >
+          <DatabaseIcon size={20} className="text-[var(--secondary)] mr-2" />
+          {tables.map((tbl) => (
+            <button
+              key={tbl}
+              onClick={() => {
+                setSelectedTable(tbl);
+                setActiveResult(null);
+              }}
+              className={`cursor-pointer px-4 py-1 rounded-t-lg transition ${
+                tbl === selectedTable && activeResult === null
+                  ? "bg-[var(--card)] text-[var(--foreground)]"
+                  : "bg-transparent text-[var(--secondary)] hover:bg-[var(--card)]"
+              }`}
+            >
+              {tbl}
+            </button>
+          ))}
+          {results.map((r) => (
+            <div key={r.id} className="relative ml-2 flex items-center">
+              <button
+                onClick={() => setActiveResult(r.id)}
+                className={`cursor-pointer px-4 py-1 rounded-t-lg transition ${
+                  activeResult === r.id
+                    ? "bg-[var(--card)] text-[var(--foreground)]"
+                    : "bg-transparent text-[var(--secondary)] hover:bg-[var(--card)]"
+                }`}
+              >
+                {r.name}
+              </button>
+              <CloseIcon
+                size={12}
+                className="absolute top-1 right-0 cursor-pointer text-[var(--secondary)] hover:text-[var(--foreground)]"
+                onClick={() => closeResult(r.id)}
+              />
             </div>
-            <div>
-              <h3 className="text-[var(--secondary)] font-semibold mb-1">{t.generatedQuery}</h3>
-              <div className="relative">
-                <textarea
-                  readOnly
-                  value={sql}
-                  className="w-full h-24 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 pr-10 resize-none"
-                />
-                <button onClick={copySql} className="absolute top-3 right-3 text-[var(--secondary)]">
-                  <Copy size={18} />
-                </button>
-              </div>
-            </div>
-          </section>
-          <section className="flex-1 min-w-0 flex flex-col">
-            <h3 className="text-[var(--secondary)] font-semibold mb-1">{t.resultTable}</h3>
-            <div className="relative flex-1 bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 overflow-hidden">
-              <div className="absolute top-3 right-3 flex gap-2">
-                <button onClick={saveCsv} disabled={!rows.length} className="text-[var(--secondary)] disabled:opacity-50">
-                  <Download size={18} />
-                </button>
-                <button onClick={() => setExpanded(true)} disabled={!rows.length} className="text-[var(--secondary)] disabled:opacity-50">
-                  <Maximize2 size={18} />
-                </button>
-              </div>
-              {loading ? (
-                <p className="text-sm italic">{t.loading}</p>
-              ) : rows.length > 0 ? (
-                <>
-                  <div className="mt-8 overflow-x-auto max-w-full">
-                    <table className="w-max border-collapse text-sm whitespace-nowrap">
+          ))}
+        </nav>
+
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div
+            className="results-table overflow-auto p-4"
+            style={{ flexBasis: "30%", flexGrow: 0 }}
+          >
+            {activeResult === null ? (
+              loadingPreview ? (
+                <div className="text-center text-[var(--secondary)]">Cargando datos…</div>
+              ) : previewCols.length > 0 ? (
+                <table className="min-w-full table-auto border-collapse">
+                  <thead>
+                    <tr className="bg-[var(--card)]">
+                      {previewCols.map((col) => (
+                        <th key={col} className="border px-2 py-1 text-left text-[var(--secondary)]">
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((row, i) => (
+                      <tr
+                        key={i}
+                        className={`border-b ${
+                          i % 2 === 0 ? "bg-[var(--background)]" : "bg-[var(--card)]/50"
+                        }`}
+                      >
+                        {previewCols.map((col) => (
+                          <td key={col} className="px-2 py-1">
+                            {String(row[col])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-center text-[var(--secondary)]">
+                  Selecciona una tabla o ejecuta una consulta
+                </div>
+              )
+            ) : (
+              (() => {
+                const r = results.find((x) => x.id === activeResult)!;
+                return (
+                  <>
+                    <table className="min-w-full table-auto border-collapse mb-4">
                       <thead>
-                        <tr>
-                          {Object.keys(displayRows[0]).map((col) => (
-                            <th key={col} className="border px-2 py-1 bg-[var(--secondary)] text-black">
-                              {col}
+                        <tr className="bg-[var(--card)]">
+                          {r.cols.map((c) => (
+                            <th
+                              key={c}
+                              className="border px-2 py-1 text-left text-[var(--secondary)]"
+                            >
+                              {c}
                             </th>
                           ))}
-                          {needsConfirm && (
-                            <th className="border px-2 py-1 bg-[var(--secondary)] text-black">Acciones</th>
-                          )}
                         </tr>
                       </thead>
                       <tbody>
-                        {displayRows.map((row, i) => (
-                          <tr key={i} className={i % 2 === 0 ? "bg-[var(--background)]" : ""}>
-                            {Object.values(row).map((val, j) => (
-                              <td key={j} className="border px-2 py-1">
-                                {String(val)}
+                        {r.rows.map((row, i) => (
+                          <tr
+                            key={i}
+                            className={`border-b ${
+                              i % 2 === 0 ? "bg-[var(--background)]" : "bg-[var(--card)]/50"
+                            }`}
+                          >
+                            {r.cols.map((c) => (
+                              <td key={c} className="px-2 py-1">
+                                {String(row[c])}
                               </td>
                             ))}
-                            {needsConfirm && (
-                              <td className="border px-2 py-1">
-                                <button onClick={() => runQuery(true)} className="px-2 py-1 bg-red-500 text-white rounded">
-                                  Confirmar cambios
-                                </button>
-                              </td>
-                            )}
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                  {rows.length > MAX_ROWS && (
-                    <p className="mt-2 text-xs italic">
-                      Mostrando {MAX_ROWS} de {rows.length} registros...
-                    </p>
-                  )}
-                </>
-              ) : (
-                <pre className="text-sm whitespace-pre-wrap">{resultMsg}</pre>
-              )}
-            </div>
-          </section>
-        </div>
-        {expanded && (
-          <div
-            className="fixed inset-0 bg-[var(--modal-overlay)] backdrop-blur-sm z-50 flex items-center justify-center p-10"
-            onClick={() => setExpanded(false)}
-          >
-            <div
-              className="relative bg-[var(--card)] text-[var(--foreground)] p-6 rounded-xl w-full h-full overflow-auto border border-[var(--secondary)]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button onClick={() => setExpanded(false)} className="absolute top-4 right-4 text-[var(--secondary)]">
-                <X size={22} />
-              </button>
-              {rows.length > 0 ? (
-                <div className="mt-8 overflow-x-auto max-w-full">
-                  <table className="w-max border-collapse text-sm whitespace-nowrap">
-                    <thead>
-                      <tr>
-                        {Object.keys(rows[0]).map((col) => (
-                          <th key={col} className="border px-2 py-1 bg-[var(--secondary)] text-black">
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((row, i) => (
-                        <tr key={i} className={i % 2 === 0 ? "bg-[var(--background)]" : ""}>
-                          {Object.values(row).map((val, j) => (
-                            <td key={j} className="border px-2 py-1">
-                              {String(val)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <pre className="whitespace-pre-wrap text-sm">{resultMsg}</pre>
-              )}
-            </div>
+                    {r.pending && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="px-4 py-2 bg-[var(--secondary)] text-[var(--background)] rounded hover:opacity-90 transition"
+                          onClick={() => submitChat(true, r.id)}
+                          disabled={loadingChat}
+                        >
+                          Confirmar cambios
+                        </button>
+                        <button
+                          type="button"
+                          className="px-4 py-2 bg-gray-600 text-white rounded hover:opacity-90 transition"
+                          onClick={() => closeResult(r.id)}
+                          disabled={loadingChat}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            )}
           </div>
-        )}
+
+          <main className="flex flex-col p-4 overflow-auto" style={{ flexBasis: "70%", flexGrow: 1 }}>
+            <div className="flex flex-col flex-1 overflow-auto space-y-4 pr-2">
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={`rounded-lg px-3 py-2 ${
+                    m.role === "user"
+                      ? "self-end max-w-[70%] bg-teal-600 text-white font-semibold text-right"
+                      : "self-start w-full bg-[var(--card)] text-[var(--foreground)]"
+                  }`}
+                >
+                  <pre className="whitespace-pre-wrap text-sm m-0">{m.content}</pre>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handleSubmit} className="relative p-0 mt-2">
+              <textarea
+                ref={textareaRef}
+                onInput={autosize}
+                onKeyDown={handleKeyDown}
+                className="query-input w-full resize-none overflow-y-auto bg-[var(--card)] border border-[var(--secondary)] rounded-lg p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
+                style={{ maxHeight: "300%" }}
+                rows={2}
+                placeholder={t.placeholder}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+              />
+
+              <button
+                type="button"
+                onClick={paste}
+                className="cursor-pointer absolute top-2 right-4 p-1 text-[var(--secondary)] hover:text-[var(--foreground)] transition"
+                title="Pegar del portapapeles"
+              >
+                <ClipboardPaste size={18} />
+              </button>
+
+              <button
+                type="submit"
+                disabled={loadingChat || !activeId || !selectedTable}
+                className="send-button cursor-pointer absolute bottom-2 right-4 p-1.5 bg-[var(--secondary)] hover:bg-[var(--foreground)] hover:text-[var(--background)] rounded-full disabled:opacity-50 transition"
+              >
+                <Send size={16} />
+              </button>
+            </form>
+          </main>
+        </div>
       </div>
     </div>
   );

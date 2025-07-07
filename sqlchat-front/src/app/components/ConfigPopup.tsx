@@ -18,7 +18,9 @@ export default function ConfigPopup({ onClose }: Props) {
   const [passAct, setPassAct] = useState("");
   const [passNew, setPassNew] = useState("");
 
-  const [notifications, setNotifications] = useState(false);
+  const [showGuide, setShowGuide] = useState<boolean>(
+    () => localStorage.getItem("tourSeen") !== "true"
+  );
 
   const { lang, setLang } = useLocale();
   const { dark, toggle } = useTheme();
@@ -42,34 +44,26 @@ export default function ConfigPopup({ onClose }: Props) {
     (async () => {
       try {
         const u = await api.get<{ first_name: string; last_name: string; email: string }>(
-          "/users/me",
+          "/users/me"
         );
         setFirstName(u.first_name ?? "");
         setLastName(u.last_name ?? "");
         setEmail(u.email ?? "");
 
-        const p = await api.get<{
-          notifications: boolean;
-          dark_theme: boolean | null;
-          language: Lang;
-        }>("/users/preferences");
-
-        setNotifications(!!p.notifications);
-
+        const p = await api.get<{ dark_theme: boolean | null; language: Lang }>(
+          "/users/preferences"
+        );
         const preferredDark = p.dark_theme ?? dark;
         setDarkTheme(preferredDark);
         if (preferredDark !== dark) toggle(preferredDark);
-
         setLang(p.language);
-      } catch {
-      }
+      } catch {}
     })();
   }, []);
 
   const onDarkToggle = async (checked: boolean) => {
     setDarkTheme(checked);
     toggle(checked);
-
     try {
       await api.put("/users/preferences", { dark_theme: checked });
     } catch (e) {
@@ -85,11 +79,13 @@ export default function ConfigPopup({ onClose }: Props) {
         ...(email && { email }),
         ...(passAct && passNew ? { passAct, passNew } : {}),
       });
+
       await api.put("/users/preferences", {
-        notifications,
         language: lang,
         dark_theme: darkTheme,
       });
+
+      localStorage.setItem("tourSeen", showGuide ? "false" : "true");
       onClose();
     } catch (err) {
       console.error(err);
@@ -125,19 +121,19 @@ export default function ConfigPopup({ onClose }: Props) {
                   placeholder="Nombre"
                   className="input"
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={e => setFirstName(e.target.value)}
                 />
                 <input
                   placeholder="Apellido"
                   className="input"
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={e => setLastName(e.target.value)}
                 />
                 <input
                   placeholder="Correo electrónico"
                   className="input"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                 />
                 <h3 className="text-lg font-semibold text-teal-400">{t.changePassword}</h3>
                 <input
@@ -145,14 +141,14 @@ export default function ConfigPopup({ onClose }: Props) {
                   placeholder={t.currentPassword}
                   className="input"
                   value={passAct}
-                  onChange={(e) => setPassAct(e.target.value)}
+                  onChange={e => setPassAct(e.target.value)}
                 />
                 <input
                   type="password"
                   placeholder={t.newPassword}
                   className="input"
                   value={passNew}
-                  onChange={(e) => setPassNew(e.target.value)}
+                  onChange={e => setPassNew(e.target.value)}
                 />
               </div>
             </>
@@ -165,19 +161,23 @@ export default function ConfigPopup({ onClose }: Props) {
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={notifications}
-                    onChange={(e) => setNotifications(e.target.checked)}
+                    checked={showGuide}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setShowGuide(e.target.checked)
+                    }
                   />
-                  {t.notifications}
+                  Mostrar guía de inicio
                 </label>
+
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={darkTheme}
-                    onChange={(e) => onDarkToggle(e.target.checked)}
+                    onChange={e => onDarkToggle(e.target.checked)}
                   />
                   {t.darkTheme}
                 </label>
+
                 <div className="flex flex-col">
                   <label className="mb-1">{t.language}</label>
                   <select
@@ -196,10 +196,16 @@ export default function ConfigPopup({ onClose }: Props) {
           )}
 
           <div className="flex justify-end gap-4 pt-6">
-            <button onClick={guardar} className="px-4 py-2 bg-teal-400 text-black rounded-md">
+            <button
+              onClick={guardar}
+              className="px-4 py-2 bg-teal-400 text-black rounded-md"
+            >
               {t.save}
             </button>
-            <button onClick={onClose} className="px-4 py-2 border border-teal-400 rounded-md">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-teal-400 rounded-md"
+            >
               {t.close}
             </button>
           </div>

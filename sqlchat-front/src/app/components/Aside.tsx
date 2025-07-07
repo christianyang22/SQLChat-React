@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Plus,
   ChevronsLeft,
   ChevronsRight,
   Search,
-  Database,
+  Database as DbIcon,
   Trash2,
   Edit3,
 } from "lucide-react";
-import ConnectionModal, { Connection } from "./ConnectionModal";
+import ConnectionModal from "./ConnectionModal";
 import api from "@/utils/api";
-import { useDatabase } from "@/context/DatabaseContext";
-import { useT } from "@/lib/t";
+import { useDatabase, DBConfig } from "@/context/DatabaseContext";
 
 type Props = {
   collapsed: boolean;
@@ -21,82 +20,50 @@ type Props = {
 };
 
 export default function Aside({ collapsed, onToggle }: Props) {
-  const t = useT();
-  const { activeId, setActiveId } = useDatabase();
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [modalConn, setModalConn] = useState<Connection | null>(null);
+  const { dbs, activeId, setActiveId } = useDatabase();
+  const [modalConn, setModalConn] = useState<DBConfig | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
 
-  const fetchConnections = async () => {
-    try {
-      const list = await api.get<Connection[]>("/connections");
-      setConnections(list);
-    } catch {}
-  };
-
-  const remove = async (id: string) => {
-    if (!confirm(t.deleteConfirm)) return;
-    try {
-      await api.delete(`/connections/${id}`);
-      if (id === activeId) setActiveId(null);
-      await fetchConnections();
-    } catch {}
-  };
-
-  useEffect(() => {
-    fetchConnections();
-  }, []);
-
   const filtered = collapsed
-    ? connections
-    : connections.filter((c) =>
-        c.name.toLowerCase().includes(search.toLowerCase())
-      );
+    ? dbs
+    : dbs.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <>
       <aside
-        className={`${
+        className={`aside ${
           collapsed ? "w-16 px-2 py-4" : "w-64 p-4"
         } bg-[var(--aside)] flex flex-col min-h-screen gap-6 transition-all duration-300 border-r border-[var(--secondary)]`}
       >
         <div
           className={`flex items-center ${
-            collapsed ? "justify-center" : "justify-between"
+            collapsed ? "justify-center" : "justify-start"
           }`}
         >
           {!collapsed && (
-            <div className="flex items-center">
-              <img
-                src="/sqlchat.png"
-                alt="SQLChat Logo"
-                className="mr-2 w-12 h-12"
-              />
+            <>
+              <img src="/sqlchat.png" alt="Logo" className="w-10 h-10 mr-2" />
               <span className="text-2xl font-bold text-[var(--logo-color)]">
                 SQLChat
               </span>
-            </div>
+            </>
           )}
           <button
             onClick={onToggle}
-            className="p-1 rounded-md text-[var(--logo-color)] hover:text-[var(--secondary)] hover:bg-[var(--secondary)]/20 transition"
+            className="ml-auto p-1 rounded-md text-[var(--logo-color)] hover:text-[var(--secondary)] hover:bg-[var(--secondary)]/20 transition"
           >
-            {collapsed ? (
-              <ChevronsRight size={20} />
-            ) : (
-              <ChevronsLeft size={20} />
-            )}
+            {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
           </button>
         </div>
 
         {!collapsed && (
           <div className="relative">
             <input
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              type="text"
-              placeholder={t.search}
+              placeholder="Buscar..."
               className="w-full pr-8 px-2 py-1 rounded-md bg-[var(--card)] border border-[var(--secondary)] text-sm focus:outline-none"
             />
             <Search
@@ -116,7 +83,7 @@ export default function Aside({ collapsed, onToggle }: Props) {
             return (
               <li
                 key={db.id}
-                onClick={() => setActiveId(db.id!)}
+                onClick={() => setActiveId(db.id)}
                 className={`group cursor-pointer flex items-center ${
                   collapsed ? "justify-center" : "gap-2 px-2"
                 } ${
@@ -132,10 +99,7 @@ export default function Aside({ collapsed, onToggle }: Props) {
                   </div>
                 ) : (
                   <>
-                    <Database
-                      size={16}
-                      className="text-[var(--logo-color)]"
-                    />
+                    <DbIcon size={16} className="text-[var(--logo-color)]" />
                     <span className="flex-1 truncate">{db.name}</span>
                   </>
                 )}
@@ -149,17 +113,18 @@ export default function Aside({ collapsed, onToggle }: Props) {
                         setShowModal(true);
                       }}
                       className="p-1 rounded hover:bg-[var(--secondary)]/20 text-[var(--logo-color)]"
-                      title="Editar"
+                      title="Editar conexión"
                     >
                       <Edit3 size={14} />
                     </button>
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        remove(db.id!);
+                        await api.delete(`/connections/${db.id}`);
+                        window.location.reload();
                       }}
                       className="p-1 rounded hover:bg-red-600/20 text-red-600"
-                      title={t.deleteConfirm}
+                      title="Eliminar conexión"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -176,7 +141,7 @@ export default function Aside({ collapsed, onToggle }: Props) {
             setShowModal(true);
           }}
           className="mx-auto p-3 rounded-full border border-[var(--secondary)] text-[var(--secondary)] hover:bg-[var(--secondary)]/20 transition"
-          title="Nueva conexión"
+          title="Crear nueva conexión"
         >
           <Plus size={20} />
         </button>
@@ -184,9 +149,9 @@ export default function Aside({ collapsed, onToggle }: Props) {
 
       {showModal && (
         <ConnectionModal
-          connection={modalConn || undefined}
+          connection={modalConn ?? undefined}
           onClose={() => setShowModal(false)}
-          onSave={fetchConnections}
+          onSave={() => window.location.reload()}
         />
       )}
     </>

@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ConfigPopup from "./ConfigPopup";
 import api from "@/utils/api";
-import { useAuth } from "@/app/hooks/useAuth";
+import { useAuth } from "@/context/AuthContext";
 
 type Props = {
   showBurger?: boolean;
@@ -18,13 +18,14 @@ export default function Header({ showBurger = false, onBurgerClick }: Props) {
   const [showModal, setShowModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { isLogged } = useAuth();
+  const { token, setToken } = useAuth();
+  const isLogged = !!token;
 
   const handleLogout = async () => {
     try {
       await api.post("/auth/logout");
     } catch {}
-    localStorage.removeItem("token");
+    setToken(null);
     router.push("/login");
   };
 
@@ -43,7 +44,7 @@ export default function Header({ showBurger = false, onBurgerClick }: Props) {
       <header className="w-full flex items-center justify-between px-6 py-4">
         <div className="flex items-center">
           {showBurger ? (
-            <button onClick={onBurgerClick} className="text-2xl"></button>
+            <button onClick={onBurgerClick} className="text-2xl" />
           ) : (
             <Link
               href="/"
@@ -60,12 +61,13 @@ export default function Header({ showBurger = false, onBurgerClick }: Props) {
             </Link>
           )}
         </div>
+
         <div className="relative" ref={menuRef}>
           {isLogged ? (
             <>
               <button
                 onClick={() => setOpen(!open)}
-                className="px-4 py-2 border border-[var(--secondary)] rounded-md text-[var(--secondary)] hover:bg-[var(--secondary)] hover:text-black transition"
+                className="profile-button px-4 py-2 border border-[var(--secondary)] rounded-md text-[var(--secondary)] hover:bg-[var(--secondary)] hover:text-black transition"
               >
                 Perfil
               </button>

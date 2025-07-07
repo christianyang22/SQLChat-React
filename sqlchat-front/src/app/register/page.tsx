@@ -42,12 +42,10 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!formularioValido) return;
     try {
-      // 1) Llamada al register
       const res = await api.post<{ token: string; user: any }>(
         "/auth/register",
         { nombre, apellido, birthDate, email, password }
       );
-      // 2) Guardamos el token CORRECTAMENTE
       localStorage.setItem("token", res.token);
       router.push("/main");
     } catch (err: any) {

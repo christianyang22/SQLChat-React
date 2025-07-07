@@ -4,12 +4,14 @@ import Header from "@/app/components/Header";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/utils/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+  const { setToken } = useAuth();
 
   const formularioValido = email.length > 0 && password.length >= 8;
 
@@ -21,7 +23,7 @@ export default function LoginPage() {
         "/auth/login",
         { email, password }
       );
-      localStorage.setItem("token", res.token);
+      setToken(res.token);
       router.push("/main");
     } catch (err: any) {
       setError(err.message || "Error de autenticación");

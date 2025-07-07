@@ -2,58 +2,48 @@
 
 import { useState, useRef, useEffect } from "react";
 import api from "@/utils/api";
-import { Trash2 } from "lucide-react";
-
-export type Connection = {
-  id?: string;
-  name: string;
-  engine: "postgres" | "mysql" | "mariadb" | "sqlite";
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
-};
+import { DBConfig } from "@/context/DatabaseContext";
 
 type Props = {
-  connection?: Connection;
+  connection?: DBConfig;
   onClose: () => void;
   onSave: () => void;
 };
 
 export default function ConnectionModal({ connection, onClose, onSave }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const isEdit = Boolean(connection?.id);
+  const isEdit = Boolean(connection);
 
-  const [name, setName] = useState(connection?.name || "");
-  const [engine, setEngine] = useState<Connection["engine"]>(
-    connection?.engine || "postgres"
+  const [form, setForm] = useState<DBConfig>(
+    connection ?? {
+      id: 0,
+      name: "",
+      engine: "postgres",
+      host: "",
+      port: 5432,
+      user: "",
+      password: "",
+      database: "",
+    }
   );
-  const [host, setHost] = useState(connection?.host || "");
-  const [port, setPort] = useState(connection?.port || 5432);
-  const [user, setUser] = useState(connection?.user || "");
-  const [password, setPassword] = useState(connection?.password || "");
-  const [database, setDatabase] = useState(connection?.database || "");
 
   useEffect(() => {
-    const click = (e: MouseEvent) => {
+    const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
-    window.addEventListener("mousedown", click);
-    return () => window.removeEventListener("mousedown", click);
+    window.addEventListener("mousedown", handler);
+    return () => window.removeEventListener("mousedown", handler);
   }, [onClose]);
 
   const save = async () => {
-    const payload = { name: name || host, engine, host, port, user, password, database };
-    try {
-      if (isEdit && connection!.id) {
-        await api.put(`/connections/${connection!.id}`, payload);
-      } else {
-        await api.post("/connections", payload);
-      }
-      onSave();
-      onClose();
-    } catch {}
+    const payload = { ...form };
+    if (isEdit) {
+      await api.put(`/connections/${form.id}`, payload);
+    } else {
+      await api.post("/connections", payload);
+    }
+    onSave();
+    onClose();
   };
 
   return (
@@ -65,55 +55,59 @@ export default function ConnectionModal({ connection, onClose, onSave }: Props) 
         <h2 className="text-xl font-semibold text-[var(--secondary)]">
           {isEdit ? "Editar conexión" : "Nueva conexión"}
         </h2>
-        <div className="space-y-3">
-          <select
-            value={engine}
-            onChange={(e) => setEngine(e.target.value as any)}
-            className="input"
-          >
-            <option value="postgres">PostgreSQL</option>
-            <option value="mysql">MySQL</option>
-            <option value="mariadb">MariaDB</option>
-            <option value="sqlite">SQLite</option>
-          </select>
-          <input
-            placeholder="Alias"
-            className="input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            placeholder="Host"
-            className="input"
-            value={host}
-            onChange={(e) => setHost(e.target.value)}
-          />
-          <input
-            placeholder="Puerto"
-            className="input"
-            value={port}
-            onChange={(e) => setPort(Number(e.target.value))}
-          />
-          <input
-            placeholder="Usuario"
-            className="input"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-          <input
-            placeholder="Contraseña"
-            className="input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <input
-            placeholder="Base de datos"
-            className="input"
-            value={database}
-            onChange={(e) => setDatabase(e.target.value)}
-          />
-        </div>
+
+        <select
+          value={form.engine}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, engine: e.target.value as DBConfig["engine"] }))
+          }
+          className="input"
+        >
+          <option value="postgres">PostgreSQL</option>
+          <option value="mysql">MySQL</option>
+          <option value="mariadb">MariaDB</option>
+          <option value="sqlite">SQLite</option>
+        </select>
+
+        <input
+          placeholder="Alias"
+          className="input"
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+        />
+        <input
+          placeholder="Host"
+          className="input"
+          value={form.host}
+          onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
+        />
+        <input
+          placeholder="Puerto"
+          className="input"
+          type="number"
+          value={form.port}
+          onChange={(e) => setForm((f) => ({ ...f, port: Number(e.target.value) }))}
+        />
+        <input
+          placeholder="Usuario"
+          className="input"
+          value={form.user}
+          onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))}
+        />
+        <input
+          placeholder="Contraseña"
+          className="input"
+          type="password"
+          value={form.password}
+          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+        />
+        <input
+          placeholder="Base de datos"
+          className="input"
+          value={form.database}
+          onChange={(e) => setForm((f) => ({ ...f, database: e.target.value }))}
+        />
+
         <div className="flex justify-end gap-3 pt-2">
           <button
             onClick={save}
