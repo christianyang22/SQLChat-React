@@ -4,7 +4,7 @@ import textwrap
 
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 
-SYSTEM_TMPL = """\
+SQL_SYSTEM_TMPL = """\
 Eres un asistente que traduce lenguaje natural a SQL sin explicar nada.
 Cuando compares texto en una cláusula WHERE hazlo de forma insensible a mayúsculas/minúsculas (ILIKE o LOWER(col) = 'valor').
 Devuelve únicamente la sentencia.
@@ -12,8 +12,15 @@ Esquema disponible:
 {schema}
 """
 
+CHAT_SYSTEM_TMPL = """\
+Eres un asistente conversacional de propósito general. Responde de forma clara y concisa a cualquier consulta del usuario.
+"""
+
 async def ask_openai(question: str, schema: str) -> str:
-    sys_msg = SYSTEM_TMPL.format(schema=textwrap.shorten(schema, 15_000))
+    if schema:
+        sys_msg = SQL_SYSTEM_TMPL.format(schema=textwrap.shorten(schema, 15_000))
+    else:
+        sys_msg = CHAT_SYSTEM_TMPL
     resp = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[

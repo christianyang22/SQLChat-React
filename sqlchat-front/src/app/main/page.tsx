@@ -3,12 +3,7 @@
 import { useState, useEffect, FormEvent, useRef, KeyboardEvent } from "react";
 import Aside from "@/app/components/Aside";
 import Header from "@/app/components/Header";
-import {
-  ClipboardPaste,
-  Send,
-  DatabaseIcon,
-  X as CloseIcon,
-} from "lucide-react";
+import { ClipboardPaste, Send, DatabaseIcon, X as CloseIcon } from "lucide-react";
 import { useT } from "@/lib/t";
 import api from "@/utils/api";
 import { useDatabase } from "@/context/DatabaseContext";
@@ -25,38 +20,52 @@ type Result = {
 };
 
 const tourSteps = [
-  {
-    selector: 'button[title="Crear nueva conexión"]',
-    content: "Pulsa aquí para crear una nueva conexión a tu base de datos.",
-  },
-  {
-    selector: ".aside",
-    content:
-      "Esta área muestra todas tus conexiones; cuando crees la primera, aparecerá aquí. Pulsa en una para activarla.",
-  },
-  {
-    selector: ".table-nav",
-    content: "Selecciona aquí la tabla que quieres explorar.",
-  },
-  {
-    selector: ".query-input",
-    content: "Escribe tu pregunta en lenguaje natural en este cuadro.",
-  },
-  {
-    selector: ".send-button",
-    content: "Pulsa aquí para enviar tu consulta y generar el SQL.",
-  },
-  {
-    selector: ".results-table",
-    content:
-      "Los resultados o la vista previa de la mutación aparecen en esta zona.",
-  },
-  {
-    selector: "button.profile-button",
-    content:
-      "Desde aquí abres tu perfil para configuración o cerrar sesión.",
-  },
+  { selector: 'button[title="Crear nueva conexión"]', content: "Pulsa aquí para crear una nueva conexión a tu base de datos." },
+  { selector: ".aside", content: "Esta área muestra todas tus conexiones; cuando crees la primera, aparecerá aquí. Pulsa en una para activarla." },
+  { selector: ".table-nav", content: "Selecciona aquí la tabla que quieres explorar." },
+  { selector: ".query-input", content: "Escribe tu pregunta en lenguaje natural en este cuadro." },
+  { selector: ".send-button", content: "Pulsa aquí para enviar tu consulta y generar el SQL." },
+  { selector: ".results-table", content: "Los resultados o la vista previa de la mutación aparecen en esta zona." },
+  { selector: "button.profile-button", content: "Desde aquí abres tu perfil para configuración o cerrar sesión." },
 ];
+
+// Solo preguntas obvias de charla general quedan fuera de internet y BBDD
+const isGeneralChat = (txt: string) => {
+  const lower = txt.toLowerCase();
+  return [
+    "chiste",
+    "quién eres",
+    "explica",
+    "qué es",
+    "cuál es tu nombre",
+    "teoría de",
+    "definición de",
+    "cuándo naciste",
+    "cuántos años tienes",
+    "significado de",
+    "qué opinas",
+    "resumen de",
+    "resume",
+    "cómo estás",
+  ].some(x => lower.includes(x));
+};
+
+// Solo preguntas SQL cuando hay conexión activa y tabla seleccionada
+const isSQLQuery = (txt: string, activeId: number | null, selectedTable: string) => {
+  return !!activeId && !!selectedTable && !isGeneralChat(txt);
+};
+
+function isFallbackText(text: string | undefined) {
+  if (!text) return true;
+  const lower = text.toLowerCase();
+  return (
+    lower.trim() === "" ||
+    lower.includes("no tengo información") ||
+    lower.includes("no lo sé") ||
+    lower.includes("no puedo") ||
+    lower.includes("lo siento")
+  );
+}
 
 export default function MainPage() {
   return (
@@ -128,7 +137,7 @@ function MainPageInner() {
     setLoadingPreview(true);
     try {
       const res = await api.post<{ sql: string; rows: any[] }>(
-        `/query?connection_id=${activeId}`,
+        `/query/?connection_id=${activeId}`,
         { message: `SELECT * FROM ${selectedTable} LIMIT 50;`, table: selectedTable }
       );
       setPreviewCols(Object.keys(res.rows[0] || {}));
@@ -175,78 +184,140 @@ function MainPageInner() {
     if (activeResult === id) setActiveResult(null);
   };
 
+  // Solo muestra fallback si NO es internet search
+  const handleChatAndSearchFallback = async (txt: string) => {
+    let chatRes: { text: string } | null = null;
+    try {
+      chatRes = await api.post<{ text: string }>("/chat/", { message: txt });
+      const text = chatRes?.text;
+      if (text && !isFallbackText(text)) {
+        setMessages(ms => [...ms, { role: "assistant", content: text }]);
+      }
+    } catch (chatError) {
+      chatRes = null;
+    }
+
+    const fallbackNeeded = !chatRes || isFallbackText(chatRes?.text);
+
+    if (fallbackNeeded) {
+      try {
+        const searchRes = await api.post<{ result: string }>("/search/", { query: txt });
+        if (searchRes && searchRes.result) {
+          setMessages((ms) => [
+            ...ms,
+            { role: "assistant", content: searchRes.result },
+          ]);
+        }
+      } catch (searchErr: any) {
+        setMessages((ms) => [
+          ...ms,
+          { role: "assistant", content: searchErr?.message || "Error buscando en internet" },
+        ]);
+      }
+    }
+  };
+
   const submitChat = async (confirm = false, previewId?: string) => {
-    let payload: string;
+    let txt: string;
     if (previewId) {
-      payload = lastSQL;
+      txt = lastSQL;
     } else {
-      const txt = input.trim();
-      if (!txt || !activeId || !selectedTable) return;
-      payload = txt;
+      txt = input.trim();
+      if (!txt) return;
       setMessages((ms) => [...ms, { role: "user", content: txt }]);
       setInput("");
     }
 
     setLoadingChat(true);
+
     try {
-      const url = confirm
-        ? `/query?connection_id=${activeId}&confirm=true`
-        : `/query?connection_id=${activeId}`;
-      const { sql, rows } = await api.post<{ sql: string; rows: any[] }>(url, {
-        message: payload,
-        table: selectedTable,
-      });
-      setLastSQL(sql);
-      setMessages((ms) => [...ms, { role: "assistant", content: `SQL: ${sql}` }]);
+      // 1. Si es SQL, haz SQL
+      if (isSQLQuery(txt, activeId, selectedTable)) {
+        const url = confirm
+          ? `/query/?connection_id=${activeId}&confirm=true`
+          : `/query/?connection_id=${activeId}`;
+        try {
+          const res = await api.post<{ sql: string; rows: any[] }>(url, {
+            message: txt,
+            table: selectedTable,
+          });
 
-      const isMut = /^(UPDATE|DELETE|INSERT)/i.test(sql.trim());
-      if (isMut) {
-        if (!confirm) {
-          const id = uuid();
-          setResults((rs) => [
-            ...rs,
-            {
-              id,
-              name: `Vista previa ${rs.length + 1}`,
-              cols: Object.keys(rows[0] || {}),
-              rows,
-              pending: true,
-            },
-          ]);
-          setActiveResult(id);
-        } else {
-          await loadPreview();
+          const { sql, rows } = res;
 
-          if (previewRows.length === 0) {
-            setMessages((ms) => [
-              ...ms,
-              {
-                role: "assistant",
-                content:
-                  "No se han encontrado filas con el valor antiguo, los cambios se han aplicado correctamente.",
-              },
-            ]);
+          // Si la consulta SQL NO devuelve datos, no mostramos nada, pasamos a buscar en internet
+          if (!rows || rows.length === 0) {
+            await handleChatAndSearchFallback(txt);
+            setLoadingChat(false);
+            return;
           }
 
-          if (previewId) closeResult(previewId);
-        }
-        setLoadingChat(false);
-        return;
-      }
+          setLastSQL(sql);
+          setMessages((ms) => [...ms, { role: "assistant", content: `SQL: ${sql}` }]);
 
-      if (rows.length) {
-        const id = uuid();
-        setResults((rs) => [
-          ...rs,
-          {
-            id,
-            name: `Resultado ${rs.length + 1}`,
-            cols: Object.keys(rows[0] || {}),
-            rows,
-            pending: false,
-          },
-        ]);
-        setActiveResult(id);
+          const isMut = /^(UPDATE|DELETE|INSERT)/i.test(sql.trim());
+          if (isMut) {
+            if (!confirm) {
+              const id = uuid();
+              setResults((rs) => [
+                ...rs,
+                {
+                  id,
+                  name: `Vista previa ${rs.length + 1}`,
+                  cols: Object.keys(rows[0] || {}),
+                  rows,
+                  pending: true,
+                },
+              ]);
+              setActiveResult(id);
+            } else {
+              await loadPreview();
+              if (previewRows.length === 0) {
+                setMessages((ms) => [
+                  ...ms,
+                  {
+                    role: "assistant",
+                    content:
+                      "No se han encontrado filas con el valor antiguo, los cambios se han aplicado correctamente.",
+                  },
+                ]);
+              }
+              if (previewId) closeResult(previewId);
+            }
+            setLoadingChat(false);
+            return;
+          }
+          if (rows.length) {
+            const id = uuid();
+            setResults((rs) => [
+              ...rs,
+              {
+                id,
+                name: `Resultado ${rs.length + 1}`,
+                cols: Object.keys(rows[0] || {}),
+                rows,
+                pending: false,
+              },
+            ]);
+            setActiveResult(id);
+          }
+        } catch (err) {
+          await handleChatAndSearchFallback(txt);
+        }
+      } else if (!isGeneralChat(txt)) {
+        // 2. Si NO es charla general, PRIORIZA SERPAPI (internet)
+        try {
+          const searchRes = await api.post<{ result: string }>("/search/", { query: txt });
+          if (searchRes && searchRes.result) {
+            setMessages((ms) => [...ms, { role: "assistant", content: searchRes.result }]);
+            setLoadingChat(false);
+            return;
+          }
+        } catch (err) {}
+        // Si SerpAPI falla o no hay resultados, puedes intentar el chat como fallback
+        await handleChatAndSearchFallback(txt);
+      } else {
+        // 3. Si es charla general (chistes, definiciones, etc), solo chat
+        await handleChatAndSearchFallback(txt);
       }
     } catch (e: any) {
       setMessages((ms) => [
@@ -459,7 +530,7 @@ function MainPageInner() {
 
               <button
                 type="submit"
-                disabled={loadingChat || !activeId || !selectedTable}
+                disabled={loadingChat || (!activeId && !selectedTable)}
                 className="send-button cursor-pointer absolute bottom-2 right-4 p-1.5 bg-[var(--secondary)] hover:bg-[var(--foreground)] hover:text-[var(--background)] rounded-full disabled:opacity-50 transition"
               >
                 <Send size={16} />
