@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 async def describe_schema(conn: AsyncConnection, engine: str) -> str:
+    engine = engine.lower()
     if engine == "postgres":
         sql = """
         SELECT table_name AS t,
@@ -11,7 +12,7 @@ async def describe_schema(conn: AsyncConnection, engine: str) -> str:
         ORDER BY table_name, ordinal_position;
         """
         rows = await conn.exec_driver_sql(sql)
-    elif engine == "mysql":
+    elif engine in ("mysql", "mariadb"):
         sql = """
         SELECT table_name AS t,
                column_name AS c,

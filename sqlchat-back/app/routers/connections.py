@@ -142,15 +142,16 @@ async def upload_sql(
     admin_engine = create_async_engine(dsn_admin, poolclass=NullPool)
 
     async with admin_engine.begin() as conn:
-        try:
-            if engine == "postgres":
+        if engine == "postgres":
+            try:
                 await conn.execute(text(f"CREATE USER \"{admin_user}\" WITH PASSWORD '{admin_password}'"))
-            else:
-                await conn.execute(text(f"CREATE USER '{admin_user}'@'%' IDENTIFIED BY '{admin_password}'"))
-        except Exception as e:
-            if "already exists" not in str(e) and "duplicate" not in str(e):
-                raise HTTPException(400, f"Error creando usuario: {e}")
-
+            except Exception as e:
+                if "already exists" not in str(e) and "duplicate" not in str(e):
+                    raise HTTPException(400, f"Error creando usuario: {e}")
+        else:
+            await conn.execute(
+                text(f"CREATE USER IF NOT EXISTS '{admin_user}'@'%' IDENTIFIED BY '{admin_password}'")
+            )
         try:
             if engine == "postgres":
                 await conn.execute(text(f'GRANT ALL PRIVILEGES ON DATABASE "{new_db}" TO "{admin_user}"'))
