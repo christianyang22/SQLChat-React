@@ -10,7 +10,6 @@ class ConnectionBase(BaseModel):
     engine: str = Field("postgres")
 
 class ConnectionCreate(ConnectionBase):
-    """Payload que llega desde el front cuando el usuario guarda una conexión."""
     pass
 
 class ConnectionOut(ConnectionBase):

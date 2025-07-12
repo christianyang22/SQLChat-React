@@ -13,9 +13,17 @@ async function apiFetch<T = any>(
     : null;
 
   const headers: Record<string, string> = {
-    ...(body ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+
+  let payload: BodyInit | undefined;
+
+  if (body instanceof FormData) {
+    payload = body;
+  } else if (body) {
+    headers["Content-Type"] = "application/json";
+    payload = JSON.stringify(body);
+  }
 
   const url = `${API_BASE}${path}`;
 
@@ -23,7 +31,7 @@ async function apiFetch<T = any>(
     method,
     mode: "cors",
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: payload,
   });
 
   if (!res.ok) {
@@ -45,9 +53,9 @@ async function apiFetch<T = any>(
 }
 
 export default {
-  get:      <T = any>(p: string) => apiFetch<T>("GET", p),
-  getPlain:           (p: string) => apiFetch<string>("GET", p, undefined, "text"),
-  post:     <T = any>(p: string, b?: any) => apiFetch<T>("POST", p, b),
-  put:      <T = any>(p: string, b?: any) => apiFetch<T>("PUT", p, b),
-  delete:   <T = any>(p: string) => apiFetch<T>("DELETE", p),
+  get: <T = any>(p: string) => apiFetch<T>("GET", p),
+  getPlain: (p: string) => apiFetch<string>("GET", p, undefined, "text"),
+  post: <T = any>(p: string, b?: any) => apiFetch<T>("POST", p, b),
+  put: <T = any>(p: string, b?: any) => apiFetch<T>("PUT", p, b),
+  delete: <T = any>(p: string) => apiFetch<T>("DELETE", p),
 };

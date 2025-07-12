@@ -34,7 +34,6 @@ async def web_search(req: SearchRequest):
         resp = await client.get(url, params=params, timeout=10)
 
     if resp.status_code != 200:
-        print("SerpAPI error:", resp.status_code, resp.text)
         raise HTTPException(
             status_code=502,
             detail=f"SerpAPI error: {resp.text}"

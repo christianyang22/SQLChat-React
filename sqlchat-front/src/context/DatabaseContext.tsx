@@ -25,6 +25,7 @@ interface DBContextValue {
   activeId: number | null;
   setActiveId: (id: number | null) => void;
   tables: string[];
+  reloadTables: () => Promise<void>;
 }
 
 const DatabaseContext = createContext<DBContextValue | null>(null);
@@ -42,6 +43,33 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [tables, setTables] = useState<string[]>([]);
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+
+  const reloadTables = async () => {
+    if (activeId === null || !token) {
+      setTables([]);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/tables?connection_id=${activeId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+
+      const list = (await res.json()) as string[];
+      setTables(list);
+    } catch {
+      setTables([]);
+    }
+  };
 
   useEffect(() => {
     if (!token) {
@@ -75,35 +103,11 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   useEffect(() => {
-    if (activeId === null || !token) {
-      setTables([]);
-      return;
-    }
-
-    fetch(`${API_BASE}/tables?connection_id=${activeId}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
-        return res.json() as Promise<string[]>;
-      })
-      .then((list) => {
-        setTables(list);
-      })
-      .catch(() => {
-        setTables([]);
-      });
+    reloadTables();
   }, [activeId, token]);
 
   return (
-    <DatabaseContext.Provider value={{ dbs, activeId, setActiveId, tables }}>
+    <DatabaseContext.Provider value={{ dbs, activeId, setActiveId, tables, reloadTables }}>
       {children}
     </DatabaseContext.Provider>
   );

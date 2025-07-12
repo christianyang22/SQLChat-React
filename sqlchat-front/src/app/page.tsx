@@ -6,18 +6,23 @@ export default function LandingPage() {
     <main className="flex flex-col min-h-screen">
       <Header />
       <section className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
+        <img
+          src="/sqlchat.png"
+          alt="SQLChat Logo"
+          className="w-50 h-50"
+        />
         <h1 className="text-4xl font-bold">Bienvenido a SQLChat</h1>
         <p className="text-lg">¿Quieres empezar a usarlo?</p>
         <div className="flex gap-4">
           <Link
             href="/login"
-            className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition"
+            className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition cursor-pointer"
           >
             Iniciar sesión
           </Link>
           <Link
             href="/register"
-            className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition"
+            className="px-4 py-2 border border-[var(--logo-color)] text-[var(--logo-color)] font-semibold rounded-md hover:bg-[var(--logo-color)] hover:text-black transition cursor-pointer"
           >
             Regístrate
           </Link>

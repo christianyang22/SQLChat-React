@@ -145,6 +145,7 @@ services:
       - .env
     volumes:
       - .:/app
+      - ./prueba_script_sql/docker_sqlite:/docker_sqlite
     ports:
       - "8001:8000"
     depends_on:

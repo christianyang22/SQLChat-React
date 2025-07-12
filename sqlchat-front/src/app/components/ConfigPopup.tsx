@@ -66,9 +66,7 @@ export default function ConfigPopup({ onClose }: Props) {
     toggle(checked);
     try {
       await api.put("/users/preferences", { dark_theme: checked });
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   };
 
   const guardar = async () => {
@@ -87,9 +85,7 @@ export default function ConfigPopup({ onClose }: Props) {
 
       localStorage.setItem("tourSeen", showGuide ? "false" : "true");
       onClose();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) {}
   };
 
   return (

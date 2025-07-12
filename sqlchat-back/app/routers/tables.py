@@ -9,7 +9,7 @@ from app.services.sql_introspect import describe_schema
 from app.db.session import get_db
 from app.core.security import verify_access_token
 
-router = APIRouter()  # **sin** prefix aquí
+router = APIRouter()
 
 @router.get("", response_model=List[str])
 async def list_tables(
@@ -25,7 +25,6 @@ async def list_tables(
     schema = cache_get(info.id)
     if schema is None:
         from app.services.sql_executor import _build_dsn
-
         dsn = _build_dsn(
             info.engine,
             info.host,

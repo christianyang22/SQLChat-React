@@ -29,7 +29,6 @@ const tourSteps = [
   { selector: "button.profile-button", content: "Desde aquí abres tu perfil para configuración o cerrar sesión." },
 ];
 
-// Solo preguntas obvias de charla general quedan fuera de internet y BBDD
 const isGeneralChat = (txt: string) => {
   const lower = txt.toLowerCase();
   return [
@@ -50,7 +49,6 @@ const isGeneralChat = (txt: string) => {
   ].some(x => lower.includes(x));
 };
 
-// Solo preguntas SQL cuando hay conexión activa y tabla seleccionada
 const isSQLQuery = (txt: string, activeId: number | null, selectedTable: string) => {
   return !!activeId && !!selectedTable && !isGeneralChat(txt);
 };
@@ -184,7 +182,6 @@ function MainPageInner() {
     if (activeResult === id) setActiveResult(null);
   };
 
-  // Solo muestra fallback si NO es internet search
   const handleChatAndSearchFallback = async (txt: string) => {
     let chatRes: { text: string } | null = null;
     try {
@@ -231,7 +228,6 @@ function MainPageInner() {
     setLoadingChat(true);
 
     try {
-      // 1. Si es SQL, haz SQL
       if (isSQLQuery(txt, activeId, selectedTable)) {
         const url = confirm
           ? `/query/?connection_id=${activeId}&confirm=true`
@@ -244,7 +240,6 @@ function MainPageInner() {
 
           const { sql, rows } = res;
 
-          // Si la consulta SQL NO devuelve datos, no mostramos nada, pasamos a buscar en internet
           if (!rows || rows.length === 0) {
             await handleChatAndSearchFallback(txt);
             setLoadingChat(false);
@@ -270,18 +265,11 @@ function MainPageInner() {
               ]);
               setActiveResult(id);
             } else {
-              await loadPreview();
-              if (previewRows.length === 0) {
-                setMessages((ms) => [
-                  ...ms,
-                  {
-                    role: "assistant",
-                    content:
-                      "No se han encontrado filas con el valor antiguo, los cambios se han aplicado correctamente.",
-                  },
-                ]);
-              }
               if (previewId) closeResult(previewId);
+              setActiveResult(null);
+              await loadPreview();
+
+              //await reloadTables();
             }
             setLoadingChat(false);
             return;
@@ -304,7 +292,6 @@ function MainPageInner() {
           await handleChatAndSearchFallback(txt);
         }
       } else if (!isGeneralChat(txt)) {
-        // 2. Si NO es charla general, PRIORIZA SERPAPI (internet)
         try {
           const searchRes = await api.post<{ result: string }>("/search/", { query: txt });
           if (searchRes && searchRes.result) {
@@ -313,10 +300,8 @@ function MainPageInner() {
             return;
           }
         } catch (err) {}
-        // Si SerpAPI falla o no hay resultados, puedes intentar el chat como fallback
         await handleChatAndSearchFallback(txt);
       } else {
-        // 3. Si es charla general (chistes, definiciones, etc), solo chat
         await handleChatAndSearchFallback(txt);
       }
     } catch (e: any) {

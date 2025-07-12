@@ -35,9 +35,7 @@ export interface Translations {
   deleteConfirm: string;
 }
 
-type Dict = {
-  [K in Lang]: Translations;
-};
+type Dict = { [K in Lang]: Translations };
 
 const strings: Dict = {
   es: {

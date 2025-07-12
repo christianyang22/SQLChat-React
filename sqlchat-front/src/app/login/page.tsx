@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/utils/api";
 import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,7 +27,7 @@ export default function LoginPage() {
       setToken(res.token);
       router.push("/main");
     } catch (err: any) {
-      setError(err.message || "Error de autenticación");
+      setError("Correo electronico o contraseña errónea");
     }
   };
 
@@ -39,48 +40,74 @@ export default function LoginPage() {
         <form
           onSubmit={handleSubmit}
           className="flex flex-col gap-6 w-full max-w-sm text-left"
+          autoComplete="on"
         >
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
+            <label
+              htmlFor="email"
+              className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold pointer-events-none select-none"
+            >
               Correo electrónico
             </label>
             <input
+              id="email"
+              name="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError("");
+              }}
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)] transition cursor-pointer"
               required
+              autoComplete="email"
             />
           </div>
           <div className="relative">
-            <label className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold">
+            <label
+              htmlFor="password"
+              className="absolute -top-3 left-3 bg-[var(--background)] px-1 text-[var(--foreground)] text-sm font-semibold pointer-events-none select-none"
+            >
               Contraseña
             </label>
             <input
+              id="password"
+              name="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)]"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
+              className="w-full px-4 py-3 rounded-xl border border-[var(--secondary)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--secondary)] transition cursor-pointer"
               required
+              autoComplete="current-password"
             />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="min-h-[24px] flex items-center justify-center">
+            {error && (
+              <p className="text-sm text-red-500 text-center">{error}</p>
+            )}
+          </div>
           <button
             type="submit"
             disabled={!formularioValido}
-            className={`mt-2 font-semibold py-2 rounded-xl transition ${
-              formularioValido
-                ? "bg-[var(--secondary)] text-black hover:bg-[#4db4b4] hover:text-white"
+            className={`mt-2 font-semibold py-2 rounded-xl transition w-full
+              ${formularioValido
+                ? "bg-[var(--secondary)] text-black hover:bg-[#4db4b4] hover:text-white cursor-pointer"
                 : "bg-gray-600 text-white cursor-not-allowed"
-            }`}
+              }`}
           >
             Iniciar sesión
           </button>
           <p className="text-center text-sm mt-2">
             ¿No tienes cuenta?{" "}
-            <a href="/register" className="text-[var(--secondary)] hover:underline">
+            <Link
+              href="/register"
+              className="text-[var(--secondary)] hover:underline cursor-pointer transition"
+            >
               Regístrate
-            </a>
+            </Link>
           </p>
         </form>
       </section>

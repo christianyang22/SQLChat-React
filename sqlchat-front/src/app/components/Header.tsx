@@ -61,7 +61,6 @@ export default function Header({ showBurger = false, onBurgerClick }: Props) {
             </Link>
           )}
         </div>
-
         <div className="relative" ref={menuRef}>
           {isLogged ? (
             <>

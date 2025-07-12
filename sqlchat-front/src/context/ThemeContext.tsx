@@ -21,7 +21,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const html = document.documentElement;
-
     if (dark) {
       html.classList.add("dark");
       html.classList.remove("theme-light");
@@ -29,7 +28,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       html.classList.remove("dark");
       html.classList.add("theme-light");
     }
-
     localStorage.setItem("darkTheme", String(dark));
   }, [dark]);
 
