@@ -9,6 +9,47 @@ import api from "@/utils/api";
 import { useDatabase } from "@/context/DatabaseContext";
 import { v4 as uuid } from "uuid";
 import { TourProvider, useTour } from "@reactour/tour";
+import Link from "next/link";
+
+function isSearchResult(obj: any): obj is { title: string; snippet: string; link?: string } {
+  return (
+    obj &&
+    typeof obj === "object" &&
+    "title" in obj &&
+    "snippet" in obj &&
+    typeof obj.title === "string" &&
+    typeof obj.snippet === "string"
+  );
+}
+
+function RenderMessageContent({ content }: { content: string }) {
+  let parsed: any = null;
+  try {
+    parsed = typeof content === "string" ? JSON.parse(content) : content;
+  } catch {
+    parsed = content;
+  }
+
+  if (isSearchResult(parsed)) {
+    return (
+      <div>
+        <div className="font-bold text-base mb-1">{parsed.title}</div>
+        <div className="text-sm mb-1">{parsed.snippet}</div>
+        {parsed.link && (
+          <a
+            href={parsed.link}
+            className="text-[var(--secondary)] underline text-xs break-all"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {parsed.link}
+          </a>
+        )}
+      </div>
+    );
+  }
+  return <span>{parsed}</span>;
+}
 
 type Message = { role: "user" | "assistant"; content: string };
 type Result = {
@@ -295,7 +336,7 @@ function MainPageInner() {
         try {
           const searchRes = await api.post<{ result: string }>("/search/", { query: txt });
           if (searchRes && searchRes.result) {
-            setMessages((ms) => [...ms, { role: "assistant", content: searchRes.result }]);
+            setMessages((ms) => [...ms, { role: "assistant", content: JSON.stringify(searchRes.result) },]);
             setLoadingChat(false);
             return;
           }
@@ -486,7 +527,11 @@ function MainPageInner() {
                       : "self-start w-full bg-[var(--card)] text-[var(--foreground)]"
                   }`}
                 >
-                  <pre className="whitespace-pre-wrap text-sm m-0">{m.content}</pre>
+                  {m.role === "assistant" ? (
+                    <RenderMessageContent content={m.content} />
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-sm m-0">{m.content}</pre>
+                  )}
                 </div>
               ))}
             </div>
