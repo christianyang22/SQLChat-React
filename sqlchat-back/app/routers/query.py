@@ -17,24 +17,30 @@ from app.services.sql_executor import _build_dsn
 
 router = APIRouter(tags=["query"])
 
+
 class QueryRequest(BaseModel):
     message: str
     table: Optional[str] = None
 
+
 class QueryResult(BaseModel):
     sql: str
     rows: List[dict]
+    connection: dict
+
 
 def _clean_sql(raw: str) -> str:
     return re.sub(r"```(?:sql)?|```", "", raw).strip()
 
+
 def _extract_table(sql: str) -> Optional[str]:
     m = re.match(
-        r"\s*(?:UPDATE|DELETE\s+FROM|INSERT\s+INTO)\s+([^\s;]+)",
+        r"\s*(?:UPDATE|DELETE\s+FROM|INSERT\s+INTO|TRUNCATE\s+TABLE|TRUNCATE)\s+([^\s;]+)",
         sql,
         re.IGNORECASE,
     )
     return m.group(1) if m else None
+
 
 @router.post("/", response_model=QueryResult)
 async def run_query(
@@ -44,6 +50,8 @@ async def run_query(
     token: dict = Depends(verify_access_token),
     db: AsyncSession = Depends(get_db),
 ) -> QueryResult:
+    print("[QUERY] mensaje:", req.message[:200], "conn:", connection_id, "confirm:", confirm)
+
     owner_id = int(token["sub"])
     info = await get_connection(db, connection_id, owner_id)
     if not info:
@@ -64,18 +72,29 @@ async def run_query(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"OpenAI error: {e}"
+            detail=f"OpenAI error: {e}",
         ) from e
 
     sql = _clean_sql(raw_sql)
-    is_mutation = bool(re.match(r"^(INSERT|UPDATE|DELETE)", sql.strip(), re.IGNORECASE))
+    is_mutation = bool(
+        re.match(r"^\s*(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE)\b", sql, re.IGNORECASE)
+    )
     table = req.table or (_extract_table(sql) if is_mutation else None)
+
+    conn_meta = {
+        "id": info.id,
+        "name": info.name,
+        "engine": info.engine,
+        "host": info.host,
+        "port": info.port,
+        "database": info.database,
+    }
 
     if is_mutation and not confirm:
         if not table:
             raise HTTPException(
                 status_code=400,
-                detail="No se pudo determinar la tabla para la previsualización"
+                detail="No se pudo determinar la tabla para la previsualización",
             )
         dsn = _build_dsn(
             info.engine, info.host, info.port, info.user, info.password, info.database
@@ -89,7 +108,7 @@ async def run_query(
             preview = [dict(r) for r in result.mappings().all()]
             await nested.rollback()
             await tx.rollback()
-        return QueryResult(sql=sql, rows=preview)
+        return QueryResult(sql=sql, rows=preview, connection=conn_meta)
 
     try:
         dsn = _build_dsn(
@@ -99,12 +118,17 @@ async def run_query(
         async with engine_target.begin() as conn:
             result = await conn.execute(text(sql))
             if is_mutation:
-                final_rows: List[dict] = []
+                refreshed: List[dict] = []
+                tbl = table or _extract_table(sql)
+                if tbl:
+                    res2 = await conn.execute(text(f"SELECT * FROM {tbl} LIMIT 100"))
+                    refreshed = [dict(r) for r in res2.mappings().all()]
+                final_rows = refreshed
             else:
                 final_rows = [dict(r) for r in result.mappings().all()]
-        return QueryResult(sql=sql, rows=final_rows)
+        return QueryResult(sql=sql, rows=final_rows, connection=conn_meta)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"SQL execution error: {e}"
+            detail=f"SQL execution error: {e}",
         ) from e
